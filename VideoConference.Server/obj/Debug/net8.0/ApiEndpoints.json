@@ -1,0 +1,20 @@
+[
+  {
+    "ContainingType": "VideoConference.Server.Program\u002B_Closure$__",
+    "Method": "_Lambda$__0-2",
+    "RelativePath": "",
+    "HttpMethod": "GET",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.String",
+        "MediaTypes": [
+          "text/plain"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  }
+]
