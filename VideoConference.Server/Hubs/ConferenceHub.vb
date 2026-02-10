@@ -62,5 +62,16 @@ Namespace Hubs
         Public Async Function SendIceCandidate(roomId As String, targetConnectionId As String, candidate As Object) As Task
             Await Clients.Client(targetConnectionId).SendAsync("ReceiveIceCandidate", Context.ConnectionId, candidate)
         End Function
+
+        ' Aggiungi dopo gli altri metodi nella classe ConferenceHub
+
+        Public Async Function SendVideoFrame(roomId As String, targetConnectionId As String, frameData As Byte(), width As Integer, height As Integer) As Task
+            Await Clients.Client(targetConnectionId).SendAsync("ReceiveVideoFrame", Context.ConnectionId, frameData, width, height)
+        End Function
+
+        Public Async Function SendVideoFrameToAll(roomId As String, frameData As Byte(), width As Integer, height As Integer) As Task
+            Await Clients.OthersInGroup(roomId).SendAsync("ReceiveVideoFrame", Context.ConnectionId, frameData, width, height)
+        End Function
+
     End Class
 End Namespace

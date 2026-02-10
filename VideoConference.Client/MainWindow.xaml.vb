@@ -16,6 +16,8 @@ Class MainWindow
     Private _remoteConnectionId As String = ""
     Private _videoManager As VideoManager
     Private _isVideoStarted As Boolean = False
+    Private _isSendingVideo As Boolean = False
+    Private _frameSendTimer As Timers.Timer
 
     Public Event PropertyChanged As PropertyChangedEventHandler Implements INotifyPropertyChanged.PropertyChanged
 
@@ -43,7 +45,9 @@ Class MainWindow
 
     Public ReadOnly Property RemoteVideoSource As ImageSource
         Get
-            ' Per ora usiamo solo video locale
+            If _videoManager IsNot Nothing Then
+                Return _videoManager.RemoteVideoSource
+            End If
             Return Nothing
         End Get
     End Property
@@ -118,11 +122,53 @@ Class MainWindow
                                       End Sub)
                 End Sub
 
-            Console.WriteLine("Video Manager initialized with Emgu.CV")
+            ' Configura evento per invio frame
+            AddHandler _videoManager.OnFrameReadyToSend,
+            Sub(frameData As Byte(), width As Integer, height As Integer)
+                If _isSendingVideo AndAlso IsConnected AndAlso Not String.IsNullOrEmpty(_remoteConnectionId) Then
+                    SendVideoFrame(frameData, width, height)
+                End If
+            End Sub
+
+            AddHandler _videoManager.OnRemoteFrameUpdated,
+            Sub(bitmap)
+                Dispatcher.Invoke(Sub()
+                                      Debug.Print($"DEBUG: OnRemoteFrameUpdated event fired, bitmap is Nothing: {bitmap Is Nothing}")
+
+                                      If bitmap IsNot Nothing Then
+                                          ' Imposta direttamente l'immagine (bypassa il binding temporaneamente)
+                                          remoteVideoImage.Source = bitmap
+                                          txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+
+                                          ' Notifica anche il cambio della proprietà per il binding
+                                          OnPropertyChanged(NameOf(RemoteVideoSource))
+                                          Debug.Print("DEBUG: Remote frame set directly and property notified")
+                                      Else
+                                          Debug.Print("DEBUG: Remote bitmap is Nothing!")
+                                      End If
+                                  End Sub)
+            End Sub
+
+            ' Configura timer per invio frame periodico
+            _frameSendTimer = New Timers.Timer(100) ' 10 FPS per l'invio
+            _frameSendTimer.AutoReset = True
+            AddHandler _frameSendTimer.Elapsed, AddressOf OnFrameSendTimerElapsed
+
+            Debug.Print("Video Manager initialized with Emgu.CV")
 
         Catch ex As Exception
             MessageBox.Show($"Errore nell'inizializzazione video: {ex.Message}",
                           "Errore Inizializzazione", MessageBoxButton.OK, MessageBoxImage.Error)
+        End Try
+    End Sub
+
+    Private Async Sub SendVideoFrame(frameData As Byte(), width As Integer, height As Integer)
+        Try
+            If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
+                Await _connection.InvokeAsync("SendVideoFrameToAll", txtRoomId.Text, frameData, width, height)
+            End If
+        Catch ex As Exception
+            Debug.Print($"Error sending video frame: {ex.Message}")
         End Try
     End Sub
 
@@ -181,6 +227,30 @@ Class MainWindow
                 End Function
 
 
+            ' Aggiungi handler per ricevere frame video
+            _connection.On("ReceiveVideoFrame",
+            Sub(senderConnectionId As String, frameData As Byte(), width As Integer, height As Integer)
+                Debug.Print($"DEBUG: Ricevuto frame da {senderConnectionId}, dimensione: {frameData?.Length} bytes")
+                Dispatcher.Invoke(Sub()
+                                      ' Aggiorna il video remoto
+                                      If _videoManager IsNot Nothing Then
+                                          _videoManager.ReceiveRemoteFrame(frameData, width, height)
+                                          txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+
+                                          ' Forza l'aggiornamento dell'UI
+                                          remoteVideoImage.InvalidateVisual()
+                                          Debug.Print("DEBUG: ReceiveRemoteFrame called")
+                                      Else
+                                          Debug.Print("DEBUG: VideoManager è null!")
+                                      End If
+
+                                      ' Aggiorna lo stato
+                                      If String.IsNullOrEmpty(_remoteConnectionId) Then
+                                          _remoteConnectionId = senderConnectionId
+                                      End If
+                                  End Sub)
+            End Sub)
+
             ' Connessione al server
             Await _connection.StartAsync()
 
@@ -200,6 +270,15 @@ Class MainWindow
             txtStatus.Text = "Errore di connessione"
             IsConnected = False
         End Try
+    End Sub
+
+    Private Sub OnFrameSendTimerElapsed(sender As Object, e As Timers.ElapsedEventArgs)
+        ' Questo timer assicura che inviamo frame periodicamente
+        ' anche se non ci sono nuovi frame dalla webcam
+        If _isSendingVideo AndAlso _videoManager IsNot Nothing Then
+            ' Forza l'invio di un frame (se disponibile)
+            ' Il VideoManager emetterà l'evento OnFrameReadyToSend se ha un frame
+        End If
     End Sub
 
     Private Async Sub btnDisconnect_Click(sender As Object, e As RoutedEventArgs)
@@ -253,18 +332,24 @@ Class MainWindow
             Dim success = _videoManager.StartVideoCapture()
 
             If success Then
-                MessageBox.Show("Webcam attivata con successo! Il tuo video è visibile nel pannello 'Video Locale'.",
-                              "Successo", MessageBoxButton.OK, MessageBoxImage.Information)
+                'MessageBox.Show("Webcam attivata con successo! Il tuo video è visibile nel pannello 'Video Locale'.",
+                '              "Successo", MessageBoxButton.OK, MessageBoxImage.Information)
 
-                ' Dopo 2 secondi, mostra lo stato
-                Task.Delay(2000).ContinueWith(
-                    Sub(t)
-                        Dispatcher.Invoke(Sub()
-                                              If _isVideoStarted Then
-                                                  txtStatus.Text = "Connesso - Video attivo"
-                                              End If
-                                          End Sub)
-                    End Sub)
+                '' Dopo 2 secondi, mostra lo stato
+                'Task.Delay(2000).ContinueWith(
+                '    Sub(t)
+                '        Dispatcher.Invoke(Sub()
+                '                              If _isVideoStarted Then
+                '                                  txtStatus.Text = "Connesso - Video attivo"
+                '                              End If
+                '                          End Sub)
+                '    End Sub)
+                ' Avvia l'invio video
+                _isSendingVideo = True
+                _frameSendTimer.Start()
+
+                MessageBox.Show("Webcam attivata con successo! Il video verrà inviato agli altri utenti.",
+                              "Successo", MessageBoxButton.OK, MessageBoxImage.Information)
             Else
                 MessageBox.Show("Impossibile avviare la webcam. Controlla:" & vbCrLf &
                               "1. I permessi della webcam" & vbCrLf &
@@ -285,14 +370,31 @@ Class MainWindow
     End Sub
 
     Private Sub btnStopVideo_Click(sender As Object, e As RoutedEventArgs)
+        'Try
+        '    If _videoManager IsNot Nothing Then
+        '        _videoManager.StopVideoCapture()
+        '        MessageBox.Show("Webcam disattivata", "Info",
+        '                      MessageBoxButton.OK, MessageBoxImage.Information)
+        '    Else
+        '        MessageBox.Show("Video Manager non inizializzato", "Errore",
+        '                      MessageBoxButton.OK, MessageBoxImage.Error)
+        '    End If
+        'Catch ex As Exception
+        '    MessageBox.Show($"Errore nella fermata del video: {ex.Message}",
+        '                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+        'Finally
+        '    UpdateUI()
+        'End Try
         Try
             If _videoManager IsNot Nothing Then
                 _videoManager.StopVideoCapture()
+
+                ' Ferma l'invio video
+                _isSendingVideo = False
+                _frameSendTimer.Stop()
+
                 MessageBox.Show("Webcam disattivata", "Info",
                               MessageBoxButton.OK, MessageBoxImage.Information)
-            Else
-                MessageBox.Show("Video Manager non inizializzato", "Errore",
-                              MessageBoxButton.OK, MessageBoxImage.Error)
             End If
         Catch ex As Exception
             MessageBox.Show($"Errore nella fermata del video: {ex.Message}",
@@ -336,12 +438,19 @@ Class MainWindow
                                            txtStatus.Foreground = System.Windows.Media.Brushes.Red
                                        End If
 
+                                       ' Aggiorna placeholder video remoto
+                                       If remoteVideoImage.Source IsNot Nothing Then
+                                           txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+                                       Else
+                                           txtRemoteVideoPlaceholder.Visibility = Visibility.Visible
+                                       End If
+
                                        ' Aggiorna i binding delle proprietà
                                        OnPropertyChanged(NameOf(LocalVideoSource))
                                        OnPropertyChanged(NameOf(RemoteVideoSource))
 
                                    Catch ex As Exception
-                                       Console.WriteLine($"Error in UpdateUI: {ex.Message}")
+                                       Debug.Print($"Error in UpdateUI: {ex.Message}")
                                    End Try
                                End Sub)
     End Sub
@@ -362,6 +471,14 @@ Class MainWindow
         'End If
         'MyBase.OnClosing(e)
         Try
+            ' Ferma l'invio video
+            _isSendingVideo = False
+
+            If _frameSendTimer IsNot Nothing Then
+                _frameSendTimer.Stop()
+                _frameSendTimer.Dispose()
+            End If
+
             ' Pulisci le risorse video
             If _videoManager IsNot Nothing Then
                 _videoManager.Dispose()
@@ -376,9 +493,10 @@ Class MainWindow
             End If
 
         Catch ex As Exception
-            Console.WriteLine($"Error during cleanup: {ex.Message}")
+            Debug.Print($"Error during cleanup: {ex.Message}")
         Finally
             MyBase.OnClosing(e)
         End Try
+
     End Sub
 End Class

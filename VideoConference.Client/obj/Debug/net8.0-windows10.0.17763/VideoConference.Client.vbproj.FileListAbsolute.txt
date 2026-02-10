@@ -80,3 +80,4 @@ C:\Progetti\VideoConference\VideoConference.Client\bin\Debug\net8.0-windows10.0.
 C:\Progetti\VideoConference\VideoConference.Client\bin\Debug\net8.0-windows10.0.17763\runtimes\win-x86\native\msvcp140_atomic_wait.dll
 C:\Progetti\VideoConference\VideoConference.Client\bin\Debug\net8.0-windows10.0.17763\runtimes\win-x86\native\msvcp140_codecvt_ids.dll
 C:\Progetti\VideoConference\VideoConference.Client\bin\Debug\net8.0-windows10.0.17763\runtimes\win-x86\native\vcruntime140.dll
+C:\Progetti\VideoConference\VideoConference.Client\obj\Debug\net8.0-windows10.0.17763\VideoConference.Client.sourcelink.json

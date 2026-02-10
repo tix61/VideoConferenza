@@ -35,3 +35,4 @@ C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net8.0\refint\Video
 C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net8.0\VideoConference.Server.pdb
 C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net8.0\VideoConference.Server.genruntimeconfig.cache
 C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net8.0\ref\VideoConference.Server.dll
+C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net8.0\VideoConference.Server.sourcelink.json
