@@ -5,7 +5,8 @@ echo "# Aggiungere TUTTI i file modificati:"
 git add .
 
 echo "# Prepara il commit"
-git commit -m "Modifiche del $(date +'%d/%m/%Y alle %H:%M:%S')"
+set "datetime=%DATE% %TIME%"
+git commit -m "Modifiche del %datetime%"
 
 echo "# modifiche su gitHub"
 git push origin main
