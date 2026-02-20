@@ -3,13 +3,18 @@ Imports System.ComponentModel
 Imports System.Drawing
 Imports System.IO
 Imports System.Runtime.CompilerServices
+Imports System.Threading
 Imports System.Threading.Tasks
+Imports System.Timers
 Imports System.Windows
 Imports System.Windows.Media
 Imports System.Windows.Media.Imaging
 Imports Emgu.CV
 Imports Emgu.CV.CvEnum
 Imports Emgu.CV.Structure
+Imports NAudio.Dsp
+Imports NAudio.Wave
+Imports Windows.UI.Input
 
 Namespace VideoConference.Client
     Public Class VideoManager
@@ -24,11 +29,43 @@ Namespace VideoConference.Client
         Private _frameCounter As Integer = 0
 
         Public Event PropertyChanged As PropertyChangedEventHandler Implements INotifyPropertyChanged.PropertyChanged
+
         Public Event OnVideoError As Action(Of String)
         Public Event OnVideoStarted As Action
         Public Event OnVideoStopped As Action
         Public Event OnLocalFrameUpdated As Action(Of WriteableBitmap)
         Public Event OnRemoteFrameUpdated As Action(Of WriteableBitmap)
+
+        ' variabili per audio
+        Private _waveIn As WaveInEvent
+        Private _waveOut As WaveOutEvent
+        Private _bufferedWaveProvider As BufferedWaveProvider
+        Private _isAudioCapturing As Boolean = False
+        Private _isAudioPlaying As Boolean = False
+        Private _audioTimer As System.Threading.Timer
+
+        ' eventi per audio
+        Public Event OnAudioStarted As Action
+        Public Event OnAudioStopped As Action
+        Public Event OnAudioError As Action(Of String)
+        Public Event OnAudioDataReady As Action(Of Byte())
+
+        Private _isSpeaking As Boolean = False
+        Private _silenceThreshold As Integer = 500
+        Private _speakingTimeout As Integer = 1000 ' ms
+        Private _lastSpeechTime As DateTime = DateTime.Now
+
+        Public ReadOnly Property IsAudioCapturing As Boolean
+            Get
+                Return _isAudioCapturing
+            End Get
+        End Property
+
+        Public ReadOnly Property IsAudioPlaying As Boolean
+            Get
+                Return _isAudioPlaying
+            End Get
+        End Property
 
         Public Property LocalVideoSource As ImageSource
             Get
@@ -47,7 +84,7 @@ Namespace VideoConference.Client
         End Property
 
         ' Aggiungi queste proprietà
-        Private _frameQuality As Integer = 50 ' Qualità JPEG (1-100)
+        Private _frameQuality As Integer = 30 ' Qualità JPEG (1-100)
         Private _maxFrameSize As Integer = 100000 ' 100KB max per frame
 
         ' Evento per notificare quando c'è un nuovo frame da inviare
@@ -68,6 +105,13 @@ Namespace VideoConference.Client
         ' Modifica il metodo ProcessFrame per comprimere e inviare
         Private Sub ProcessFrame(frame As Mat)
             Try
+                ' Salta frame se l'UI è occupata
+                Static lastFrameTime As DateTime = DateTime.Now
+                If (DateTime.Now - lastFrameTime).TotalMilliseconds < 66 Then ' Max 15fps
+                    Return
+                End If
+                lastFrameTime = DateTime.Now
+
                 Application.Current.Dispatcher.Invoke(
                 Sub()
                     Try
@@ -395,12 +439,12 @@ Namespace VideoConference.Client
                 ' Configura risoluzione
                 _capture.Set(CapProp.FrameWidth, 640)
                 _capture.Set(CapProp.FrameHeight, 480)
-                _capture.Set(CapProp.Fps, 30)
+                _capture.Set(CapProp.Fps, 15)
 
                 _isCapturing = True
 
                 ' Avvia timer per catturare frame
-                _timer = New Threading.Timer(AddressOf CaptureFrame, Nothing, 0, 33) ' ~30 FPS
+                _timer = New Threading.Timer(AddressOf CaptureFrame, Nothing, 0, 66) ' ~15 FPS
 
                 RaiseEvent OnVideoStarted()
                 Debug.Print("Video capture started successfully")
@@ -419,10 +463,14 @@ Namespace VideoConference.Client
 
             Try
                 Using frame As New Mat()
-                    ' Cattura un frame
-                    If _capture.Read(frame) AndAlso Not frame.IsEmpty Then
-                        ProcessFrame(frame)
-                    End If
+                    Try
+                        ' Cattura un frame
+                        If _capture.Read(frame) AndAlso Not frame.IsEmpty Then
+                            ProcessFrame(frame)
+                        End If
+                    Catch ex As Exception
+                        Debug.Print($"Error reading frame: {ex.Message}")
+                    End Try
                 End Using
 
             Catch ex As Exception
@@ -486,17 +534,379 @@ Namespace VideoConference.Client
             End Try
         End Sub
 
+        'Public Sub Dispose() Implements IDisposable.Dispose
+        '    If Not _isDisposed Then
+        '        Debug.Print("Disposing Video Manager...")
+        '        StopVideoCapture()
+        '        _isDisposed = True
+        '        Debug.Print("Video Manager disposed successfully")
+        '    End If
+        'End Sub
+
+        ' ========== METODO DISPOSE ==========
+
         Public Sub Dispose() Implements IDisposable.Dispose
             If Not _isDisposed Then
                 Debug.Print("Disposing Video Manager...")
-                StopVideoCapture()
-                _isDisposed = True
-                Debug.Print("Video Manager disposed successfully")
+
+                ' Ferma audio
+                StopAudioCapture()
+                StopAudioPlayback()
+
+                ' ... [resto del codice dispose per video] ...
             End If
         End Sub
 
         Protected Sub OnPropertyChanged(<CallerMemberName> Optional memberName As String = Nothing)
             RaiseEvent PropertyChanged(Me, New PropertyChangedEventArgs(memberName))
         End Sub
+
+#Region "Audio Capture (NAudio)"
+        ' ========== METODI PER AUDIO ==========
+
+        Public Function StartAudioCapture() As Boolean
+            If _isAudioCapturing Then
+                Debug.Print("Audio capture already started")
+                Return True
+            End If
+
+            Try
+                Debug.Print("Starting audio capture...")
+
+                ' VERIFICA MICROFONI DISPONIBILI
+                Debug.Print($"WaveIn devices: {WaveIn.DeviceCount}")
+                For i As Integer = 0 To WaveIn.DeviceCount - 1
+                    Dim caps = WaveIn.GetCapabilities(i)
+                    Debug.Print($"Device {i}: {caps.ProductName}")
+                Next
+
+                If WaveIn.DeviceCount = 0 Then
+                    RaiseEvent OnAudioError("Nessun microfono trovato!")
+                    Return False
+                End If
+
+                ' Configura cattura audio
+                _waveIn = New WaveInEvent()
+                _waveIn.DeviceNumber = 0 ' Forza l'uso del primo microfono
+                '_waveIn.WaveFormat = New WaveFormat(44100, 16, 1) ' 44.1kHz, 16-bit, mono
+                _waveIn.WaveFormat = New WaveFormat(16000, 16, 1) ' 16kHz invece di 44.1kHz
+                AddHandler _waveIn.DataAvailable, AddressOf OnAudioDataAvailable
+                AddHandler _waveIn.RecordingStopped, AddressOf OnAudioRecordingStopped
+
+                Debug.Print($"WaveIn configurato: Device={_waveIn.DeviceNumber}, Format={_waveIn.WaveFormat.SampleRate}Hz, Buffer={_waveIn.BufferMilliseconds}ms")
+
+                ' Buffer per ricezione audio
+                _bufferedWaveProvider = New BufferedWaveProvider(_waveIn.WaveFormat)
+                _bufferedWaveProvider.BufferDuration = TimeSpan.FromSeconds(2)
+
+                _waveIn.StartRecording()
+                _isAudioCapturing = True
+
+                Debug.Print("Audio capture started successfully - DOVREBBE INIZIARE A RICEVERE DATI")
+
+                ' Timer per invio audio (riduce frame rate)
+                _audioTimer = New System.Threading.Timer(AddressOf SendAudioData, Nothing, 0, 100)
+
+                RaiseEvent OnAudioStarted()
+
+                Debug.Print("Audio capture started successfully")
+                Return True
+
+            Catch ex As Exception
+                Dim errorMsg = $"Error starting audio capture: {ex.Message}"
+                Debug.Print(errorMsg)
+                RaiseEvent OnAudioError(errorMsg)
+                Return False
+            End Try
+        End Function
+
+        Public Sub StopAudioCapture()
+            Try
+                If _isAudioCapturing Then
+                    Debug.Print("Stopping audio capture...")
+
+                    If _audioTimer IsNot Nothing Then
+                        _audioTimer.Dispose()
+                        _audioTimer = Nothing
+                    End If
+
+                    If _waveIn IsNot Nothing Then
+                        _waveIn.StopRecording()
+                        _waveIn.Dispose()
+                        _waveIn = Nothing
+                    End If
+
+                    _isAudioCapturing = False
+                    RaiseEvent OnAudioStopped()
+                    Debug.Print("Audio capture stopped successfully")
+                End If
+            Catch ex As Exception
+                Dim errorMsg = $"Error stopping audio: {ex.Message}"
+                Debug.Print(errorMsg)
+                RaiseEvent OnAudioError(errorMsg)
+            End Try
+        End Sub
+
+        Private Sub OnAudioDataAvailable(sender As Object, e As WaveInEventArgs)
+            Try
+
+                If Not _isAudioCapturing OrElse e.BytesRecorded = 0 Then Return
+
+                ' Calcola volume
+                Dim sum As Long = 0
+                For i As Integer = 0 To e.BytesRecorded - 1 Step 2
+                    If i + 1 < e.BytesRecorded Then
+                        Dim sample = BitConverter.ToInt16(e.Buffer, i)
+                        sum += Math.Abs(sample)
+                    End If
+                Next
+                Dim avgVolume = CSng(sum) / (e.BytesRecorded / 2)
+
+                ' Rileva se qualcuno sta parlando
+                If avgVolume > _silenceThreshold Then
+                    _isSpeaking = True
+                    _lastSpeechTime = DateTime.Now
+                End If
+
+                ' I dati audio sono pronti per essere inviati o riprodotti
+                If _isAudioCapturing AndAlso e.BytesRecorded > 0 Then
+
+                    ' Invia audio solo se:
+                    ' 1. Il volume è sopra la soglia (qualcuno parla)
+                    ' 2. Non stiamo già riproducendo audio (per evitare eco)
+                    ' 3. Non è passato troppo tempo dall'ultima volta che qualcuno ha parlato
+                    If avgVolume > _silenceThreshold AndAlso Not _isAudioPlaying Then
+                        ' SAMPLE RATE CONVERSION: riduci ulteriormente se necessario
+                        ' Per ora inviamo solo 1 pacchetto ogni 2 per ridurre traffico
+                        Static skipCounter As Integer = 0
+                        skipCounter += 1
+                        If skipCounter Mod 2 = 0 Then ' Invia solo metà pacchetti
+
+                            ' Copia i dati
+                            Dim audioData = New Byte(e.BytesRecorded - 1) {}
+                            Array.Copy(e.Buffer, audioData, e.BytesRecorded)
+
+                            ' Invia in background
+                            Task.Run(Sub() RaiseEvent OnAudioDataReady(audioData))
+                        End If
+
+                        ' Buffer locale (sempre attivo per sentire se stai parlando)
+                        If _isAudioPlaying AndAlso _bufferedWaveProvider IsNot Nothing Then
+                            _bufferedWaveProvider.AddSamples(e.Buffer, 0, e.BytesRecorded)
+                        End If
+                    End If
+
+                    ' Reset stato parlato dopo un periodo di silenzio
+                    If _isSpeaking AndAlso (DateTime.Now - _lastSpeechTime).TotalMilliseconds > _speakingTimeout Then
+                        _isSpeaking = False
+                        Debug.Print("AUDIO: Fine conversazione")
+                    End If
+
+                End If
+
+            Catch ex As Exception
+                Debug.Print($"Error processing audio data: {ex.Message}")
+            End Try
+        End Sub
+
+        Private Sub OnAudioRecordingStopped(sender As Object, e As StoppedEventArgs)
+            Debug.Print($"Audio recording stopped: {e.Exception?.Message}")
+            _isAudioCapturing = False
+        End Sub
+
+        Private Sub SendAudioData(state As Object)
+            ' Questo metodo viene chiamato dal timer per inviare dati audio
+            ' L'invio effettivo è già gestito da OnAudioDataAvailable
+            ' Qui possiamo aggiungere logica di compressione se necessario
+        End Sub
+
+        ' Metodo per ricevere e riprodurre audio remoto
+        Public Sub ReceiveRemoteAudio(audioData As Byte())
+            Try
+                If audioData Is Nothing OrElse audioData.Length = 0 Then
+                    Debug.Print("AUDIO DEBUG: Dati audio nulli o vuoti")
+                    Return
+                End If
+
+                Debug.Print($"AUDIO DEBUG: Ricevuti {audioData.Length} bytes")
+
+                ' Se non abbiamo ancora inizializzato la riproduzione, fallo
+                If Not _isAudioPlaying Then
+                    Debug.Print("AUDIO DEBUG: Inizializzo riproduzione audio")
+                    InitializeAudioPlayback()
+                End If
+
+                ' Aggiungi i dati audio al buffer per la riproduzione
+                If _bufferedWaveProvider IsNot Nothing Then
+                    _bufferedWaveProvider.AddSamples(audioData, 0, audioData.Length)
+                    Debug.Print($"DEBUG: Added {audioData.Length} bytes to audio buffer")
+                Else
+                    Debug.Print("AUDIO DEBUG: _bufferedWaveProvider è null!")
+                End If
+
+            Catch ex As Exception
+                Debug.Print($"Error receiving remote audio: {ex.Message}")
+            End Try
+        End Sub
+
+        Private Sub InitializeAudioPlayback()
+            Try
+                If _waveOut Is Nothing AndAlso _bufferedWaveProvider IsNot Nothing Then
+                    Debug.Print("AUDIO DEBUG: Creazione WaveOut...")
+
+                    _waveOut = New WaveOutEvent()
+                    _waveOut.Init(_bufferedWaveProvider)
+                    _waveOut.Play()
+                    _isAudioPlaying = True
+                    Debug.Print($"AUDIO DEBUG: WaveOut creato e avviato. Volume: {_waveOut.Volume}")
+
+                    Debug.Print("Audio playback initialized")
+
+                    ' Verifica dispositivo audio
+                    For i As Integer = 0 To WaveOut.DeviceCount - 1
+                        Dim caps = WaveOut.GetCapabilities(i)
+                        Debug.Print($"AUDIO DEBUG: Device {i}: {caps.ProductName}")
+                    Next
+
+                End If
+            Catch ex As Exception
+                Debug.Print($"Error initializing audio playback: {ex.Message}")
+                RaiseEvent OnAudioError($"Cannot initialize audio playback: {ex.Message}")
+            End Try
+        End Sub
+
+        Public Function CheckMicrophone() As String
+            Dim result As String = ""
+
+            Try
+                result &= $"WaveIn devices found: {WaveIn.DeviceCount}" & vbCrLf
+
+                For i As Integer = 0 To WaveIn.DeviceCount - 1
+                    Dim caps = WaveIn.GetCapabilities(i)
+                    result &= $"Device {i}: {caps.ProductName}" & vbCrLf
+                    result &= $"  - Channels: {caps.Channels}" & vbCrLf
+                    result &= $"  - Supported: Yes" & vbCrLf
+                Next
+
+                If WaveIn.DeviceCount = 0 Then
+                    result &= "NESSUN MICROFONO TROVATO!" & vbCrLf
+                    result &= "Verifica che il microfono sia collegato e i driver installati."
+                End If
+
+            Catch ex As Exception
+                result &= $"ERRORE: {ex.Message}"
+            End Try
+
+            Return result
+        End Function
+
+        Public Sub TestLocalAudio()
+            Try
+                Debug.Print("AUDIO DEBUG: Test locale audio...")
+
+                ' Notifica all'UI
+                Application.Current.Dispatcher.Invoke(Sub()
+                                                          MessageBox.Show("Test audio in corso - Dovresti sentire un tono per 1 secondo",
+                          "Test Audio", MessageBoxButton.OK, MessageBoxImage.Information)
+                                                      End Sub)
+
+                ' Crea WaveOut
+                Dim waveOut = New WaveOutEvent()
+
+                ' Crea provider che genera un tono di 440Hz per 1 secondo
+                Dim toneProvider = New ToneWaveProvider(440, 1.0)
+
+                ' Inizializza e riproduci
+                waveOut.Init(toneProvider)
+                waveOut.Play()
+
+                Debug.Print("AUDIO DEBUG: Tono 440Hz avviato")
+
+                ' Ferma dopo 1 secondo
+                Dim stopTime = DateTime.Now.AddSeconds(1)
+                Task.Run(
+            Sub()
+                While DateTime.Now < stopTime
+                    Thread.Sleep(100)
+                End While
+
+                waveOut.Stop()
+                waveOut.Dispose()
+                Debug.Print("AUDIO DEBUG: Tono fermato")
+
+                Application.Current.Dispatcher.Invoke(Sub()
+                                                          Debug.Print("Test audio completato")
+                                                      End Sub)
+            End Sub)
+
+            Catch ex As Exception
+                Debug.Print($"AUDIO DEBUG: Errore test locale: {ex.Message}")
+
+                ' Fallback: beep di Windows
+                Try
+                    Console.Beep(440, 500)
+                Catch
+                    System.Media.SystemSounds.Asterisk.Play()
+                End Try
+            End Try
+        End Sub
+
+        Public Sub StopAudioPlayback()
+            Try
+                If _waveOut IsNot Nothing Then
+                    _waveOut.Stop()
+                    _waveOut.Dispose()
+                    _waveOut = Nothing
+                    _isAudioPlaying = False
+                    Debug.Print("Audio playback stopped")
+                End If
+            Catch ex As Exception
+                Debug.Print($"Error stopping audio playback: {ex.Message}")
+            End Try
+        End Sub
+
+#End Region
+    End Class
+
+    ' Classe helper per generare un tono semplice
+    Public Class ToneWaveProvider
+        Inherits WaveProvider32
+
+        Private _frequency As Double
+        Private _amplitude As Double
+        Private _phase As Double
+        Private _sampleRate As Integer = 44100
+
+        Public Sub New(frequency As Double, durationSeconds As Double)
+            MyBase.New(44100, 1) ' 44.1kHz, mono
+            _frequency = frequency
+            _amplitude = 0.3 ' Volume 30%
+            Debug.Print($"ToneWaveProvider creato: {frequency}Hz per {durationSeconds}s")
+        End Sub
+
+        Public Overrides Function Read(buffer() As Single, offset As Integer, sampleCount As Integer) As Integer
+            For i As Integer = 0 To sampleCount - 1
+                ' Genera onda sinusoidale
+                buffer(offset + i) = CSng(_amplitude * Math.Sin(_phase))
+
+                ' Aggiorna fase
+                _phase += 2 * Math.PI * _frequency / _sampleRate
+
+                ' Mantieni fase tra 0 e 2PI
+                If _phase > 2 * Math.PI Then
+                    _phase -= 2 * Math.PI
+                End If
+            Next
+
+            ' Log ogni secondo circa
+            Static sampleCounter As Integer = 0
+            sampleCounter += sampleCount
+            If sampleCounter >= _sampleRate Then
+                Debug.Print($"ToneWaveProvider: generati {sampleCounter} samples")
+                sampleCounter = 0
+            End If
+
+            Return sampleCount
+        End Function
     End Class
 End Namespace

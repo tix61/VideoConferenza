@@ -8,7 +8,7 @@ Module Program
         Dim builder = WebApplication.CreateBuilder(args)
 
         ' Configurazione per usare la porta 5000
-        builder.WebHost.UseUrls("http://localhost:5000;https://localhost:5001")
+        builder.WebHost.UseUrls("http://192.168.1.4:5000;https://192.168.1.4:5001")
 
         ' Configurazione CORS
         builder.Services.AddCors(
