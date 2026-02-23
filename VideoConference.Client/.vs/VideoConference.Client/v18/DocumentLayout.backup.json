@@ -3,12 +3,16 @@
   "WorkspaceRootPath": "C:\\Progetti\\VideoConference\\VideoConference.Client\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\mainwindow.xaml.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
+      "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:mainwindow.xaml.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\screensharemanager.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
       "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:screensharemanager.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\mainwindow.xaml.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
-      "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:mainwindow.xaml.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
+      "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\videoconference.client.vbproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:videoconference.client.vbproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
     },
     {
       "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
@@ -26,8 +30,35 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 0,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindow.xaml.vb",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml.vb",
+              "RelativeDocumentMoniker": "MainWindow.xaml.vb",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml.vb",
+              "RelativeToolTip": "MainWindow.xaml.vb",
+              "ViewState": "AgIAADACAAAAAAAAAAAewEICAAA6AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
+              "WhenOpened": "2026-02-10T11:38:47.169Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "MainWindow.xaml",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml",
+              "RelativeToolTip": "MainWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-02-10T13:02:11.437Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:1:0:{e8b06f52-6d01-11d2-aa7d-00c04f990343}"
@@ -38,53 +69,41 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
+              "Title": "VideoConference.Client",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\VideoConference.Client.vbproj",
+              "RelativeDocumentMoniker": "VideoConference.Client.vbproj",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\VideoConference.Client.vbproj",
+              "RelativeToolTip": "VideoConference.Client.vbproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003380|",
+              "WhenOpened": "2026-02-23T10:31:55.85Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
               "Title": "ScreenShareManager.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\ScreenShareManager.vb",
               "RelativeDocumentMoniker": "ScreenShareManager.vb",
-              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\ScreenShareManager.vb*",
-              "RelativeToolTip": "ScreenShareManager.vb*",
-              "ViewState": "AgIAAFAAAAAAAAAAAAAqwG0AAABXAAAAAAAAAA==",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\ScreenShareManager.vb",
+              "RelativeToolTip": "ScreenShareManager.vb",
+              "ViewState": "AgIAAHkBAAAAAAAAAAAAAIEBAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
               "WhenOpened": "2026-02-19T15:34:07.996Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "VideoManager.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\VideoManager.vb",
               "RelativeDocumentMoniker": "VideoManager.vb",
               "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\VideoManager.vb",
               "RelativeToolTip": "VideoManager.vb",
-              "ViewState": "AgIAAD8AAAAAAAAAAAAAAF4AAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
               "WhenOpened": "2026-02-10T13:22:29.331Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "MainWindow.xaml",
-              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml",
-              "RelativeDocumentMoniker": "MainWindow.xaml",
-              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml",
-              "RelativeToolTip": "MainWindow.xaml",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-02-10T13:02:11.437Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "MainWindow.xaml.vb",
-              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml.vb",
-              "RelativeDocumentMoniker": "MainWindow.xaml.vb",
-              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml.vb",
-              "RelativeToolTip": "MainWindow.xaml.vb",
-              "ViewState": "AgIAAI0DAAAAAAAAAAASwKADAAAMAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
-              "WhenOpened": "2026-02-10T11:38:47.169Z",
               "EditorCaption": ""
             }
           ]

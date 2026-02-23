@@ -27,6 +27,11 @@ Public Class ScreenShareManager
     Public Event OnScreenError As Action(Of String)
     Public Event OnScreenFrameReady As Action(Of Byte(), Integer, Integer)
 
+    ' qualità e dimensioni per condivisione (possono essere configurabili)
+    Private _shareQuality As Integer = 75          ' Qualità JPEG (1-100)
+    Private _shareMaxWidth As Integer = 1280       ' Larghezza massima di invio
+    Private _shareMaxHeight As Integer = 720       ' Altezza massima di invio
+
     Public ReadOnly Property IsSharing As Boolean
         Get
             Return _isSharing
@@ -83,6 +88,44 @@ Public Class ScreenShareManager
         End Try
     End Function
 
+    'Private Sub CaptureScreen(state As Object)
+    '    If Not _isSharing Then Return
+
+    '    SyncLock _frameLock
+    '        Try
+    '            Using bitmap As New System.Drawing.Bitmap(_screenWidth, _screenHeight)
+    '                Using graphics = System.Drawing.Graphics.FromImage(bitmap)
+    '                    graphics.CopyFromScreen(0, 0, 0, 0,
+    '                    New System.Drawing.Size(_screenWidth, _screenHeight))
+    '                End Using
+
+    '                ' Usa BitmapExtension per convertire
+    '                Dim imageFrame = bitmap.ToImage(Of Bgr, Byte)()
+
+    '                Try
+    '                    ' Riduci per invio direttamente con Resize
+    '                    Using resized = imageFrame.Resize(320, 240, Inter.Linear)
+    '                        Dim compressedFrame As Byte() = resized.ToJpegData(_frameQuality)
+
+    '                        If compressedFrame IsNot Nothing AndAlso compressedFrame.Length > 0 Then
+    '                            ' Aggiorna preview solo per DEBUG
+    '                            'UpdatePreviewSimple(resized)
+
+    '                            ' Invia
+    '                            RaiseEvent OnScreenFrameReady(compressedFrame, 320, 240)
+    '                        End If
+    '                    End Using
+    '                Finally
+    '                    imageFrame.Dispose()
+    '                End Try
+    '            End Using
+
+    '        Catch ex As Exception
+    '            Debug.Print($"Error capturing screen: {ex.Message}")
+    '        End Try
+    '    End SyncLock
+    'End Sub
+
     Private Sub CaptureScreen(state As Object)
         If Not _isSharing Then Return
 
@@ -91,23 +134,29 @@ Public Class ScreenShareManager
                 Using bitmap As New System.Drawing.Bitmap(_screenWidth, _screenHeight)
                     Using graphics = System.Drawing.Graphics.FromImage(bitmap)
                         graphics.CopyFromScreen(0, 0, 0, 0,
-                        New System.Drawing.Size(_screenWidth, _screenHeight))
+                    New System.Drawing.Size(_screenWidth, _screenHeight))
                     End Using
 
-                    ' Usa BitmapExtension per convertire
+                    ' Converti Bitmap in Image di Emgu.CV
                     Dim imageFrame = bitmap.ToImage(Of Bgr, Byte)()
 
                     Try
-                        ' Riduci per invio direttamente con Resize
-                        Using resized = imageFrame.Resize(320, 240, Inter.Linear)
-                            Dim compressedFrame As Byte() = resized.ToJpegData(_frameQuality)
+                        ' Definisci la larghezza massima desiderata (es. 1280)
+                        Dim maxWidth As Integer = 1280
+
+                        ' Calcola l'altezza mantenendo le proporzioni
+                        Dim targetWidth As Integer = Math.Min(_screenWidth, maxWidth)
+                        Dim targetHeight As Integer = CInt(_screenHeight * targetWidth / _screenWidth)
+
+                        Debug.Print($"Ridimensionamento: {_screenWidth}x{_screenHeight} -> {targetWidth}x{targetHeight}")
+
+                        Using resized = imageFrame.Resize(targetWidth, targetHeight, Inter.Linear)
+                            ' Usa una qualità JPEG più alta per preservare i dettagli
+                            Dim compressedFrame As Byte() = resized.ToJpegData(75) ' Aumenta qualità
 
                             If compressedFrame IsNot Nothing AndAlso compressedFrame.Length > 0 Then
-                                ' Aggiorna preview solo per DEBUG
-                                'UpdatePreviewSimple(resized)
-
-                                ' Invia
-                                RaiseEvent OnScreenFrameReady(compressedFrame, 320, 240)
+                                ' Invia con le dimensioni effettive del frame ridimensionato
+                                RaiseEvent OnScreenFrameReady(compressedFrame, targetWidth, targetHeight)
                             End If
                         End Using
                     Finally

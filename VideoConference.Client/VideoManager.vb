@@ -866,6 +866,7 @@ Namespace VideoConference.Client
         End Sub
 
 #End Region
+
     End Class
 
     ' Classe helper per generare un tono semplice

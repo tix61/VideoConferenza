@@ -18,8 +18,22 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 0,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ConferenceHub.vb",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb",
+              "RelativeDocumentMoniker": "Hubs\\ConferenceHub.vb",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb*",
+              "RelativeToolTip": "Hubs\\ConferenceHub.vb*",
+              "ViewState": "AgIAAFIBAAAAAAAAAADwv3UBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
+              "WhenOpened": "2026-02-10T10:15:45.974Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:1:0:{e8b06f52-6d01-11d2-aa7d-00c04f990343}"
@@ -30,26 +44,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "ConferenceHub.vb",
-              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb",
-              "RelativeDocumentMoniker": "Hubs\\ConferenceHub.vb",
-              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb",
-              "RelativeToolTip": "Hubs\\ConferenceHub.vb",
-              "ViewState": "AgIAAHIAAAAAAAAAAAAAAIQAAAAMAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
-              "WhenOpened": "2026-02-10T10:15:45.974Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 1,
               "Title": "Program.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Program.vb",
               "RelativeDocumentMoniker": "Program.vb",
               "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Program.vb",
               "RelativeToolTip": "Program.vb",
-              "ViewState": "AgIAAAEAAAAAAAAAAAAYwAoAAABMAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAABOAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
               "WhenOpened": "2026-02-10T10:15:25.913Z",
               "EditorCaption": ""

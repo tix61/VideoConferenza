@@ -8,7 +8,7 @@ Module Program
         Dim builder = WebApplication.CreateBuilder(args)
 
         ' Configurazione per usare la porta 5000
-        builder.WebHost.UseUrls("http://192.168.1.4:5000;https://192.168.1.4:5001")
+        builder.WebHost.UseUrls("http://192.168.1.56:5000;https://192.168.1.56:5001")
 
         ' Configurazione CORS
         builder.Services.AddCors(
@@ -21,7 +21,23 @@ Module Program
                     End Sub)
             End Sub)
 
-        builder.Services.AddSignalR()
+        ' Configurazione SignalR con tutte le opzioni
+        builder.Services.AddSignalR(Sub(options)
+                                        ' Limite dimensione messaggi (20 MB)
+                                        options.MaximumReceiveMessageSize = 20 * 1024 * 1024
+
+                                        ' Capacità buffer streaming
+                                        options.StreamBufferCapacity = 50
+
+                                        ' Timeout keep-alive
+                                        options.KeepAliveInterval = TimeSpan.FromSeconds(10)
+
+                                        ' Timeout client
+                                        options.ClientTimeoutInterval = TimeSpan.FromSeconds(120)
+
+                                        ' Abilita compressione (se disponibile)
+                                        options.EnableDetailedErrors = True
+                                    End Sub)
 
         Dim app = builder.Build()
 

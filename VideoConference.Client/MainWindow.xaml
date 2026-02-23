@@ -1,23 +1,32 @@
 <Window x:Class="MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Video Conference Client" Height="756" Width="1051">
-
+        xmlns:local="clr-namespace:VideoConference.Client"        
+        Title="Video Conference Client" 
+        WindowState="Maximized"  
+        WindowStyle="SingleBorderWindow"
+        Height="1080" Width="1920">
+    
     <Grid>
-        <Grid.ColumnDefinitions>
+        <!--<Grid.ColumnDefinitions>
             <ColumnDefinition/>
             <ColumnDefinition Width="0*"/>
             <ColumnDefinition Width="0*"/>
-        </Grid.ColumnDefinitions>
+        </Grid.ColumnDefinitions>-->
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Barra di connessione -->
             <RowDefinition Height="Auto"/>
+            <!-- Barra di stato -->
             <RowDefinition Height="*"/>
+            <!-- Area principale -->
             <RowDefinition Height="Auto"/>
+            <!-- Barra controlli -->
         </Grid.RowDefinitions>
 
         <!-- Connection Panel -->
-        <GroupBox Header="Connessione" Grid.Row="0" Margin="10,10,10,10">
+        <!--<GroupBox Header="Connessione" Grid.Row="0" Margin="10,10,10,10">
             <StackPanel Orientation="Horizontal">
                 <TextBox x:Name="txtServerUrl" Text="https://192.168.1.56:5001" Width="200" Margin="5"/>
                 <TextBox x:Name="txtUserName" Text="Utente1" Width="100" Margin="5"/>
@@ -27,18 +36,37 @@
                 <Button x:Name="btnShareScreen" Content="🖥️ Condividi Schermo" Width="130" Margin="5" Height="30" Background="LightBlue" FontWeight="Bold" ToolTip="Condividi lo schermo con gli altri utenti"/>
                 <Button x:Name="btnStopShare" Content="⏹️ Ferma Condivisione" Width="130" Margin="5" Height="30" Background="LightPink" FontWeight="Bold" ToolTip="Ferma la condivisione schermo" IsEnabled="False"/>
             </StackPanel>
+        </GroupBox>-->
+        <GroupBox Header="Connessione" Grid.Row="0" Margin="5">
+            <StackPanel Orientation="Horizontal">
+                <TextBox x:Name="txtServerUrl" Text="https://192.168.1.56:5001" Width="200" Margin="5"/>
+                <TextBox x:Name="txtUserName" Text="Utente1" Width="100" Margin="5"/>
+                <TextBox x:Name="txtRoomId" Text="stanza1" Width="100" Margin="5"/>
+                <Button x:Name="btnConnect" Content="Connetti" Width="80" Margin="5"/>
+                <Button x:Name="btnDisconnect" Content="Disconnetti" Width="80" Margin="5"/>
+                <Button x:Name="btnShareScreen" Content="🖥️ Condividi Schermo" Width="140" Margin="5" Height="30" Background="LightBlue" FontWeight="Bold" ToolTip="Condividi lo schermo con gli altri utenti"/>
+                <Button x:Name="btnStopShare" Content="⏹️ Ferma Condivisione" Width="140" Margin="5" Height="30" Background="LightPink" FontWeight="Bold" ToolTip="Ferma la condivisione schermo" IsEnabled="False"/>
+            </StackPanel>
         </GroupBox>
-    
-        <!-- Status Panel -->
+        
+        <!-- Status Panel --><!--
         <GroupBox Header="Stato" Grid.Row="1" Margin="10,10,10,10">
             <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="txtStatus" Text="Non connesso" Margin="5" VerticalAlignment="Center" FontWeight="Bold"/>
                 <TextBlock x:Name="txtVideoStatus" Text="Video: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold"/>
                 <TextBlock x:Name="txtAudioStatus" Text="Audio: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold"/>
             </StackPanel>
+        </GroupBox>-->
+        <!-- Status Panel -->
+        <GroupBox Header="Stato" Grid.Row="1" Margin="5">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="txtStatus" Text="Non connesso" Margin="5" VerticalAlignment="Center" FontWeight="Bold" MinWidth="150"/>
+                <TextBlock x:Name="txtVideoStatus" Text="Video: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold" MinWidth="100"/>
+                <TextBlock x:Name="txtAudioStatus" Text="Audio: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold" MinWidth="100"/>
+            </StackPanel>
         </GroupBox>
-
-        <!-- Video Panels -->
+        
+        <!-- Video Panels --><!--
         <Grid Grid.Row="2" Margin="10,10,10,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -46,12 +74,14 @@
                 <ColumnDefinition Width="100"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Screen Share Preview -->
+            --><!-- Screen Share Preview --><!--
             <GroupBox Header="Condivisione Schermo" Grid.Column="0" Margin="5">
                 <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
                     <Grid>
                         <Image x:Name="screenShareImage" 
-                       Stretch="Uniform"/>
+                                Stretch="Uniform"  
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center"/>
                         <TextBlock x:Name="txtScreenSharePlaceholder" 
                            Text="Nessuna condivisione attiva" 
                            HorizontalAlignment="Center" 
@@ -62,7 +92,7 @@
                 </Border>
             </GroupBox>
 
-            <!-- Local Video -->
+            --><!-- Local Video --><!--
             <GroupBox Header="Video Locale" Grid.Column="1" Margin="5">
                 <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
                     <Grid>
@@ -77,7 +107,7 @@
                 </Border>
             </GroupBox>
 
-            <!-- Remote Video -->
+            --><!-- Remote Video --><!--
             <GroupBox Header="Video Remoto" Grid.Column="2" Margin="5">
                 <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
                     <Grid>
@@ -92,18 +122,217 @@
                 </Border>
             </GroupBox>
 
-        </Grid>
+        </Grid>-->
+        <!-- AREA PRINCIPALE: Grid con 3 colonne ridimensionabili -->
+        <Grid Grid.Row="2" Margin="5">
+            <Grid.ColumnDefinitions>
+                <!-- Colonna sinistra: video locali e partecipanti (fissa 250px) -->
+                <ColumnDefinition Width="250"/>
+                <!-- Colonna centrale: screen share (larga, proporzionale) -->
+                <ColumnDefinition Width="5*"/>
+                <!-- Colonna destra: video remoti e chat -->
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
 
+            <!-- PANNELLO SINISTRO: Video locale piccolo e partecipanti -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Video Locale (piccolo) -->
+                    <GroupBox Header="Il mio video" Margin="0,0,0,5" Height="140">
+                        <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
+                            <Grid>
+                                <Image x:Name="localVideoImage" 
+                                       Stretch="Uniform" 
+                                       MaxHeight="120"/>
+                                <TextBlock x:Name="txtLocalVideoPlaceholder" 
+                                          Text="Webcam non attiva" 
+                                          HorizontalAlignment="Center" 
+                                          VerticalAlignment="Center"
+                                          Foreground="White"
+                                          FontSize="12"
+                                          TextWrapping="Wrap"
+                                          TextAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </GroupBox>
+
+                    <!-- Lista partecipanti (in tempo reale) -->
+                    <GroupBox Header="Partecipanti" Margin="0,5,0,5">
+                        <ListBox x:Name="lstParticipants" Height="150" Background="#2D2D30" Foreground="White" BorderThickness="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="2">
+                                        <!-- Icona video con stile inline -->
+                                        <TextBlock Text="🎥" Margin="0,0,2,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="Gray"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasVideo}" Value="True">
+                                                            <Setter Property="Foreground" Value="LightGreen"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Icona audio con stile inline -->
+                                        <TextBlock Text="🎤" Margin="0,0,2,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="Gray"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasAudio}" Value="True">
+                                                            <Setter Property="Foreground" Value="LightGreen"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Icona screen share con stile inline -->
+                                        <TextBlock Text="🖥️" Margin="0,0,2,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="Gray"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsScreenSharing}" Value="True">
+                                                            <Setter Property="Foreground" Value="LightGreen"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        
+                                        <!-- Nome utente -->
+                                        <TextBlock Text="{Binding UserName}" Margin="2,0,0,0" FontWeight="Bold"/>
+                                        <TextBlock Text="(" Foreground="Gray"/>
+                                        <TextBlock Text="{Binding ConnectionId}" Foreground="Gray" FontSize="8" MaxWidth="50" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text=")" Foreground="Gray"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </GroupBox>
+
+
+                    <!-- Anteprime webcam degli altri utenti -->
+                    <GroupBox Header="Webcam partecipanti" Margin="0,5,0,0">
+                        <StackPanel>
+                            <!-- Questo ItemsControl verrà popolato dinamicamente -->
+                            <ItemsControl x:Name="icRemoteWebcams">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="Gray" BorderThickness="1" Background="Black" Height="100" Margin="0,2">
+                                            <Grid>
+                                                <Image Source="{Binding VideoSource}" Stretch="Uniform"/>
+                                                <TextBlock Text="{Binding UserName}" 
+                                                          Foreground="White" 
+                                                          HorizontalAlignment="Center" 
+                                                          VerticalAlignment="Bottom"
+                                                          Background="#80000000"
+                                                          Padding="2"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- COLONNA CENTRALE: Screen Share (più grande possibile) -->
+            <GroupBox Header="Condivisione Schermo" Grid.Column="1" Margin="5,0,5,0">
+                <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
+                    <Grid>
+                        <Image x:Name="screenShareImage" 
+                               Stretch="Uniform" 
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtScreenSharePlaceholder" 
+                                   Text="Nessuna condivisione attiva" 
+                                   HorizontalAlignment="Center" 
+                                   VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FontSize="16"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </GroupBox>
+
+            <!-- COLONNA DESTRA: Video remoto principale + chat -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Video remoto principale (più grande) -->
+                <GroupBox Header="Video remoto principale" Grid.Row="0" Margin="0,0,0,5" Height="200">
+                    <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
+                        <Grid>
+                            <Image x:Name="remoteVideoImage" 
+                                   Stretch="Uniform" 
+                                   MaxHeight="180"/>
+                            <TextBlock x:Name="txtRemoteVideoPlaceholder" 
+                                       Text="In attesa di connessione" 
+                                       HorizontalAlignment="Center" 
+                                       VerticalAlignment="Center"
+                                       Foreground="White"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </GroupBox>
+
+                <!-- Chat -->
+                <GroupBox Header="Chat" Grid.Row="1" Margin="0,5,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ListBox x:Name="lstChat" Grid.Row="0" Background="#2D2D30" 
+                                Foreground="White" BorderThickness="0" Margin="0,0,0,5">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Sender}" FontWeight="Bold" Foreground="LightBlue"/>
+                                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="5,0,0,5"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel Grid.Row="1" Orientation="Horizontal">
+                            <TextBox x:Name="txtChatMessage" Width="150" Margin="0,0,5,0" Height="25"/>
+                            <Button x:Name="btnSendChat" Content="Invia" Width="60" Height="25"/>
+                        </StackPanel>
+                    </Grid>
+                </GroupBox>
+            </Grid>
+        </Grid>
+        
         <!-- Controls -->
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,10" Width="770">
-            <Button x:Name="btnStartVideo" Content="Avvia Video" Width="100" Margin="5"/>
-            <Button x:Name="btnStopVideo" Content="Ferma Video" Width="100" Margin="5"/>
-            <Button x:Name="btnStartAudio" Content="Avvia Audio" Width="100" Margin="5" IsEnabled="False"/>
-            <Button x:Name="btnStopAudio" Content="Ferma Audio" Width="100" Margin="5" IsEnabled="False"/>
-            <!-- PULSANTE TEST AUDIO -->
-            <Button x:Name="btnTestAudio" Content="🔊 Test Audio" Width="100" Margin="5" Height="30" Background="LightGreen" FontWeight="Bold" ToolTip="Testa il funzionamento dell'audio"/>
-            <Button x:Name="btnTestAudioSend" Content="📢 Test Invia Audio" Width="120" Margin="5" Height="30" Background="LightYellow" Click="btnTestAudioSend_Click"/>
-            <Button x:Name="btnMuteMic" Content="🎤 Mute" Width="80" Margin="5" Height="30" Background="LightGray" Click="btnMuteMic_Click"/>
-        </StackPanel>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+            <Button x:Name="btnStartVideo" Content="Avvia Video" Width="100" Margin="5" Height="30"/>
+            <Button x:Name="btnStopVideo" Content="Ferma Video" Width="100" Margin="5" Height="30"/>
+            <Button x:Name="btnStartAudio" Content="Avvia Audio" Width="100" Margin="5" Height="30" IsEnabled="True"/>
+            <Button x:Name="btnStopAudio" Content="Ferma Audio" Width="100" Margin="5" Height="30" IsEnabled="True"/>
+            <Button x:Name="btnTestAudio" Content="🔊 Test Audio" Width="100" Margin="5" Height="30" 
+                    Background="LightGreen" FontWeight="Bold"/>
+            <Button x:Name="btnTestAudioSend" Content="📢 Test Invia Audio" Width="120" Margin="5" Height="30" 
+                    Background="LightYellow"/>
+            <Button x:Name="btnMuteMic" Content="🎤 Mute" Width="80" Margin="5" Height="30" Background="LightGray"/>
+            <ComboBox x:Name="cmbScreenStretch" Width="100" Margin="5" Height="30" SelectedIndex="0">
+                <ComboBoxItem Content="Adatta"/>
+                <ComboBoxItem Content="Riempi"/>
+                <ComboBoxItem Content="Originale"/>
+            </ComboBox>
+        </StackPanel>        
     </Grid>
 </Window>

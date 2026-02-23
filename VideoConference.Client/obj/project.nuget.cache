@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "dtdT9P74oGY=",
+  "dgSpecHash": "a1Dep0z5RVs=",
   "success": true,
   "projectFilePath": "C:\\Progetti\\VideoConference\\VideoConference.Client\\VideoConference.Client.vbproj",
   "expectedPackageFiles": [
@@ -24,6 +24,7 @@
     "C:\\Users\\tizia\\.nuget\\packages\\microsoft.extensions.features\\10.0.3\\microsoft.extensions.features.10.0.3.nupkg.sha512",
     "C:\\Users\\tizia\\.nuget\\packages\\microsoft.extensions.logging\\10.0.3\\microsoft.extensions.logging.10.0.3.nupkg.sha512",
     "C:\\Users\\tizia\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\10.0.3\\microsoft.extensions.logging.abstractions.10.0.3.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.extensions.logging.debug\\10.0.3\\microsoft.extensions.logging.debug.10.0.3.nupkg.sha512",
     "C:\\Users\\tizia\\.nuget\\packages\\microsoft.extensions.options\\10.0.3\\microsoft.extensions.options.10.0.3.nupkg.sha512",
     "C:\\Users\\tizia\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.3\\microsoft.extensions.primitives.10.0.3.nupkg.sha512",
     "C:\\Users\\tizia\\.nuget\\packages\\microsoft.netcore.platforms\\3.1.0\\microsoft.netcore.platforms.3.1.0.nupkg.sha512",

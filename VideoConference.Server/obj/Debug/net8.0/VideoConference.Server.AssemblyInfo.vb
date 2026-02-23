@@ -16,7 +16,7 @@ Imports System.Reflection
 <Assembly: System.Reflection.AssemblyCompanyAttribute("VideoConference.Server"),  _
  Assembly: System.Reflection.AssemblyConfigurationAttribute("Debug"),  _
  Assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0"),  _
- Assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+de1bcb1ddc12922240682ecec82f9c17330d94be"),  _
+ Assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c71b438cc0ce9c5f43100f75ee7e47f7a5226d5e"),  _
  Assembly: System.Reflection.AssemblyProductAttribute("VideoConference.Server"),  _
  Assembly: System.Reflection.AssemblyTitleAttribute("VideoConference.Server"),  _
  Assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")> 
