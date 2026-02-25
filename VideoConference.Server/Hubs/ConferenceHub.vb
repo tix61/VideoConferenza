@@ -1,5 +1,6 @@
-Imports Microsoft.AspNetCore.SignalR
 Imports System.Collections.Concurrent
+Imports Microsoft.AspNetCore
+Imports Microsoft.AspNetCore.SignalR
 
 Namespace Hubs
     Public Class ConferenceHub
@@ -8,6 +9,7 @@ Namespace Hubs
         Private Shared ReadOnly _connections As New ConcurrentDictionary(Of String, String)()
         Private Shared ReadOnly _rooms As New ConcurrentDictionary(Of String, String)()
         Private Shared ReadOnly _userStatus As New ConcurrentDictionary(Of String, UserStatus)()
+        Private Shared ReadOnly _activeScreenSharer As New ConcurrentDictionary(Of String, String)() ' Key: roomId, Value: connectionId
 
         ' Classe per tenere traccia dello stato utente
         Private Class UserStatus
@@ -30,13 +32,25 @@ Namespace Hubs
                 ' Rimuovi dalla stanza
                 Dim roomId As String = Nothing
                 If _rooms.TryGetValue(Context.ConnectionId, roomId) Then
-                    ' Notifica agli altri che l'utente ha lasciato
-                    Await Clients.OthersInGroup(roomId).SendAsync("UserLeft", Context.ConnectionId)
-                    _rooms.TryRemove(Context.ConnectionId, Nothing)
+                    ' Notifica a tutti che l'utente ha fermato il video (se era attivo)
+                    If _userStatus.ContainsKey(Context.ConnectionId) AndAlso _userStatus(Context.ConnectionId).HasVideo Then
+                        Await Clients.OthersInGroup(roomId).SendAsync("VideoStopped", Context.ConnectionId)
+                    End If
 
-                    ' AGGIORNA LA LISTA PER TUTTI
-                    Await BroadcastParticipantsList(roomId)
+                    ' Se questo utente stava condividendo lo schermo, rimuovilo
+                    Dim sharer As String = Nothing
+                    If _activeScreenSharer.TryGetValue(roomId, sharer) AndAlso sharer = Context.ConnectionId Then
+                        _activeScreenSharer.TryRemove(roomId, Nothing)
+                    End If
+                    Await Clients.Group(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
                 End If
+
+                ' Notifica agli altri che l'utente ha lasciato
+                Await Clients.OthersInGroup(roomId).SendAsync("UserLeft", Context.ConnectionId)
+                _rooms.TryRemove(Context.ConnectionId, Nothing)
+
+                ' AGGIORNA LA LISTA PER TUTTI
+                Await BroadcastParticipantsList(roomId)
 
                 _connections.TryRemove(Context.ConnectionId, Nothing)
 
@@ -92,13 +106,13 @@ Namespace Hubs
             Await Groups.AddToGroupAsync(Context.ConnectionId, roomId)
 
             ' Notifica agli altri nella stanza
-            Await Clients.OthersInGroup(roomId).SendAsync("UserJoined", Context.ConnectionId, userName)
+            Await Clients.Groups(roomId).SendAsync("UserJoined", Context.ConnectionId, userName)
+
+            ' Ottieni la lista degli utenti escluso il nuovo
+            Dim existingUsersList = GetParticipantsInRoom(roomId) ', Context.ConnectionId)
 
             ' AGGIORNA LA LISTA PER TUTTI
             Await BroadcastParticipantsList(roomId)
-
-            ' Ottieni la lista degli utenti escluso il nuovo
-            Dim existingUsersList = GetParticipantsInRoom(roomId, Context.ConnectionId)
 
             Await Clients.Caller.SendAsync("ExistingUsers", existingUsersList)
 
@@ -352,23 +366,128 @@ Namespace Hubs
             End Try
         End Function
 
-        Public Async Function StopScreenShare(roomId As String) As Task
+        Public Async Function StartScreenShare(roomId As String) As Task(Of Boolean)
             Try
-                Debug.Print($"StopScreenShare: {Context.ConnectionId} ha fermato la condivisione in stanza {roomId}")
+                ' Verifica se qualcuno sta già condividendo in questa stanza
+                If _activeScreenSharer.ContainsKey(roomId) Then
+                    Dim currentSharer = _activeScreenSharer(roomId)
+                    Debug.Print($"StartScreenShare: {roomId} già condiviso da {currentSharer}")
 
-                ' Notifica a tutti gli altri che lo screenshare è terminato
-                Await Clients.OthersInGroup(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
-
-                ' Aggiorna lo stato utente
-                If _userStatus.ContainsKey(Context.ConnectionId) Then
-                    _userStatus(Context.ConnectionId).IsScreenSharing = False
+                    ' Notifica al chiamante che non può condividere
+                    Await Clients.Caller.SendAsync("ScreenShareBlocked", "Qualcun altro sta già condividendo lo schermo")
+                    Return False
                 End If
 
-                ' Opzionale: aggiorna la lista partecipanti
+                ' Registra questo utente come screen sharer
+                _activeScreenSharer(roomId) = Context.ConnectionId
+
+                ' Aggiorna stato utente
+                If _userStatus.ContainsKey(Context.ConnectionId) Then
+                    _userStatus(Context.ConnectionId).IsScreenSharing = True
+                End If
+
+                Debug.Print($"StartScreenShare: {Context.ConnectionId} sta condividendo in stanza {roomId}")
+
+                ' Notifica a tutti (incluso il mittente) che lo screenshare è iniziato
+                Await Clients.Group(roomId).SendAsync("ScreenShareStarted", Context.ConnectionId)
+
+                ' Aggiorna lista partecipanti
                 Await BroadcastParticipantsList(roomId)
+
+                Return True
+
+            Catch ex As Exception
+                Debug.Print($"Errore in StartScreenShare: {ex.Message}")
+                Return False
+            End Try
+        End Function
+
+        Public Async Function StopScreenShare(roomId As String) As Task
+            'Try
+            '    Debug.Print($"StopScreenShare: {Context.ConnectionId} ha fermato la condivisione in stanza {roomId}")
+
+            '    ' Notifica a tutti gli altri che lo screenshare è terminato
+            '    Await Clients.OthersInGroup(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
+
+            '    ' Aggiorna lo stato utente
+            '    If _userStatus.ContainsKey(Context.ConnectionId) Then
+            '        _userStatus(Context.ConnectionId).IsScreenSharing = False
+            '    End If
+
+            '    ' Opzionale: aggiorna la lista partecipanti
+            '    Await BroadcastParticipantsList(roomId)
+
+            'Catch ex As Exception
+            '    Debug.Print($"Errore in StopScreenShare: {ex.Message}")
+            'End Try
+            Try
+                ' Verifica che questo utente stia effettivamente condividendo
+                Dim sharer As String = Nothing
+                If _activeScreenSharer.TryGetValue(roomId, sharer) AndAlso sharer = Context.ConnectionId Then
+                    _activeScreenSharer.TryRemove(roomId, Nothing)
+
+                    Debug.Print($"StopScreenShare: {Context.ConnectionId} ha fermato condivisione in stanza {roomId}")
+
+                    ' Aggiorna stato utente
+                    If _userStatus.ContainsKey(Context.ConnectionId) Then
+                        _userStatus(Context.ConnectionId).IsScreenSharing = False
+                    End If
+
+                    ' Notifica a tutti (incluso il mittente) che lo screenshare è finito
+                    Await Clients.Group(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
+
+                    ' Aggiorna lista partecipanti
+                    Await BroadcastParticipantsList(roomId)
+                End If
 
             Catch ex As Exception
                 Debug.Print($"Errore in StopScreenShare: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function SendCursorPosition(roomId As String, x As Integer, y As Integer) As Task
+            Try
+                ' Invia a tutti gli altri nella stanza
+                Await Clients.OthersInGroup(roomId).SendAsync("CursorPosition", Context.ConnectionId, x, y)
+                Debug.Print($"Cursor position sent: ({x}, {y})")
+            Catch ex As Exception
+                Debug.Print($"Errore in SendCursorPosition: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function RequestScreenDimensions(roomId As String, targetConnectionId As String) As Task
+            Try
+                Await Clients.Client(targetConnectionId).SendAsync("SendScreenDimensions", Context.ConnectionId)
+            Catch ex As Exception
+                Debug.Print($"Errore in RequestScreenDimensions: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function SendScreenDimensions(roomId As String, width As Integer, height As Integer) As Task
+            Try
+                Await Clients.OthersInGroup(roomId).SendAsync("ScreenDimensions", width, height)
+            Catch ex As Exception
+                Debug.Print($"Errore in SendScreenDimensions: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function StopVideo(roomId As String) As Task
+            Try
+                Debug.Print($"🛑 SERVER: StopVideo da {Context.ConnectionId} in stanza {roomId}")
+
+                ' Notifica a tutti gli altri che il video è terminato
+                Await Clients.OthersInGroup(roomId).SendAsync("VideoStopped", Context.ConnectionId)
+
+                ' Aggiorna stato utente
+                If _userStatus.ContainsKey(Context.ConnectionId) Then
+                    _userStatus(Context.ConnectionId).HasVideo = False
+                End If
+
+                ' Opzionale: aggiorna lista partecipanti
+                Await BroadcastParticipantsList(roomId)
+
+            Catch ex As Exception
+                Debug.Print($"❌ SERVER Errore in StopVideo: {ex.Message}")
             End Try
         End Function
 

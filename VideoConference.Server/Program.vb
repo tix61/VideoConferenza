@@ -36,7 +36,7 @@ Module Program
                                         options.ClientTimeoutInterval = TimeSpan.FromSeconds(120)
 
                                         ' Abilita compressione (se disponibile)
-                                        options.EnableDetailedErrors = True
+                                        options.EnableDetailedErrors = False
                                     End Sub)
 
         Dim app = builder.Build()

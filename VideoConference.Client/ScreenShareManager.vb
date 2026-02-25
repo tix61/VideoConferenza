@@ -16,16 +16,29 @@ Public Class ScreenShareManager
     Private _isSharing As Boolean = False
     Private _timer As Timer
     Private _screenBitmap As WriteableBitmap
-    Private _frameQuality As Integer = 40 ' Qualità JPEG
+    Private _frameQuality As Integer = 50 ' Qualità JPEG
     Private _screenWidth As Integer = 1280
     Private _screenHeight As Integer = 720
     Private _frameLock As New Object()
+
+    Private _cursorTimer As Timer
+    Private _lastCursorPos As System.Drawing.Point
+    Private _isTrackingCursor As Boolean = False
+
+    Public Property shareScreenWidth As Integer
+    Public Property shareScreenHeight As Integer
 
     Public Event PropertyChanged As PropertyChangedEventHandler Implements INotifyPropertyChanged.PropertyChanged
     Public Event OnScreenShareStarted As Action
     Public Event OnScreenShareStopped As Action
     Public Event OnScreenError As Action(Of String)
     Public Event OnScreenFrameReady As Action(Of Byte(), Integer, Integer)
+    Public Event OnScreenDimensionsReady As Action(Of Integer, Integer)
+
+    ' evento per la posizione del cursore
+    Public Event OnCursorPositionChanged As Action(Of Integer, Integer)
+    Private _lastSentPos As System.Drawing.Point
+    Private _minDistance As Integer = 5 ' Pixel minimi di movimento per inviare
 
     ' qualità e dimensioni per condivisione (possono essere configurabili)
     Private _shareQuality As Integer = 75          ' Qualità JPEG (1-100)
@@ -49,10 +62,13 @@ Public Class ScreenShareManager
     End Property
 
     Public Sub New()
-        Debug.Print("ScreenShareManager initialized")
+        'Debug.Print("ScreenShareManager initialized")
+        Debug.Print($"🔧 ScreenShareManager COSTRUTTORE chiamato - Hash: {Me.GetHashCode()}")
     End Sub
 
     Public Function StartScreenShare() As Boolean
+        Debug.Print($"🚀 StartScreenShare chiamato - Hash: {Me.GetHashCode()}")
+
         If _isSharing Then Return True
 
         Try
@@ -62,19 +78,25 @@ Public Class ScreenShareManager
             Dim primaryScreen = System.Windows.Forms.Screen.PrimaryScreen
             _screenWidth = primaryScreen.Bounds.Width
             _screenHeight = primaryScreen.Bounds.Height
-
-            '' Riduci se troppo grande
-            'If _screenWidth > 1280 Then
-            '    _screenWidth = 1280
-            '    _screenHeight = CInt(_screenHeight * 1280 / primaryScreen.Bounds.Width)
-            'End If
+            shareScreenWidth = primaryScreen.Bounds.Width
+            shareScreenHeight = primaryScreen.Bounds.Height
 
             Debug.Print($"Screen size: {_screenWidth}x{_screenHeight}")
 
             _isSharing = True
 
             ' Timer per cattura schermo (5 FPS per risparmiare CPU)
-            _timer = New Timer(AddressOf CaptureScreen, Nothing, 0, 200) ' 5 FPS
+            ' Verifica che il timer esista e parta
+            If _timer Is Nothing Then
+                _timer = New Timer(AddressOf CaptureScreen, Nothing, 0, 200)
+                Debug.Print($"   Timer CREATO: {_timer.GetHashCode()}")
+            Else
+                Debug.Print($"   Timer già esistente: {_timer.GetHashCode()}")
+                _timer.Change(0, 200)
+            End If
+
+            ' Avvia anche il tracking del cursore
+            StartCursorTracking()
 
             RaiseEvent OnScreenShareStarted()
             Debug.Print("Screen share started")
@@ -127,10 +149,13 @@ Public Class ScreenShareManager
     'End Sub
 
     Private Sub CaptureScreen(state As Object)
+        Debug.Print($"📸 CaptureScreen chiamato - _isSharing={_isSharing}, Timer={If(_timer IsNot Nothing, "OK", "NULL")}")
+
         If Not _isSharing Then Return
 
         SyncLock _frameLock
             Try
+                Debug.Print($"   Catturo schermo {_screenWidth}x{_screenHeight}")
                 Using bitmap As New System.Drawing.Bitmap(_screenWidth, _screenHeight)
                     Using graphics = System.Drawing.Graphics.FromImage(bitmap)
                         graphics.CopyFromScreen(0, 0, 0, 0,
@@ -388,6 +413,12 @@ Public Class ScreenShareManager
                 Debug.Print("Stopping screen share...")
 
                 _isSharing = False
+                _isTrackingCursor = False
+
+                If _cursorTimer IsNot Nothing Then
+                    _cursorTimer.Dispose()
+                    _cursorTimer = Nothing
+                End If
 
                 If _timer IsNot Nothing Then
                     _timer.Dispose()
@@ -403,6 +434,82 @@ Public Class ScreenShareManager
             Debug.Print(errorMsg)
             RaiseEvent OnScreenError(errorMsg)
         End Try
+    End Sub
+
+    Public Sub StartCursorTracking()
+        If _isTrackingCursor Then Return
+
+        _isTrackingCursor = True
+        _lastCursorPos = System.Windows.Forms.Cursor.Position
+
+        ' Timer per tracciare il cursore (30 FPS)
+        _cursorTimer = New Timer(Sub() TrackCursor(), Nothing, 0, 66)
+        Debug.Print("Cursor tracking started")
+    End Sub
+
+    'Private Sub TrackCursor()
+    '    If Not _isSharing OrElse Not _isTrackingCursor Then Return
+
+    '    Try
+    '        Dim currentPos = System.Windows.Forms.Cursor.Position
+
+    '        ' Invia solo se la posizione è cambiata (riduce traffico)
+    '        If currentPos <> _lastCursorPos Then
+    '            _lastCursorPos = currentPos
+
+    '            ' Converti le coordinate in rapporto allo schermo
+    '            ' (utile se il client remoto ha risoluzione diversa)
+    '            Dim screen = System.Windows.Forms.Screen.PrimaryScreen
+    '            Dim relX = currentPos.X / screen.Bounds.Width
+    '            Dim relY = currentPos.Y / screen.Bounds.Height
+
+    '            ' Puoi inviare sia coordinate assolute che relative
+    '            RaiseEvent OnCursorPositionChanged(currentPos.X, currentPos.Y)
+
+    '            ' Se vuoi anche le relative (per adattamento schermo):
+    '            ' RaiseEvent OnCursorPositionChanged(relX, relY)
+    '        End If
+
+    '    Catch ex As Exception
+    '        Debug.Print($"Error tracking cursor: {ex.Message}")
+    '    End Try
+    'End Sub
+
+    Private Sub TrackCursor()
+        If Not _isSharing OrElse Not _isTrackingCursor Then Return
+
+        Try
+            Dim currentPos = System.Windows.Forms.Cursor.Position
+
+            ' Calcola la distanza dall'ultima posizione inviata
+            Dim distance = Math.Sqrt(
+            Math.Pow(currentPos.X - _lastSentPos.X, 2) +
+            Math.Pow(currentPos.Y - _lastSentPos.Y, 2))
+
+            ' Invia solo se la distanza è significativa
+            If distance > _minDistance Then
+                _lastSentPos = currentPos
+
+                Application.Current.Dispatcher.BeginInvoke(
+                New Action(Sub()
+                               RaiseEvent OnCursorPositionChanged(currentPos.X, currentPos.Y)
+                           End Sub))
+            End If
+
+        Catch ex As Exception
+            Debug.Print($"Error tracking cursor: {ex.Message}")
+        End Try
+    End Sub
+
+    Public Sub SendMyScreenDimensions()
+        Dim primaryScreen = System.Windows.Forms.Screen.PrimaryScreen
+        shareScreenWidth = primaryScreen.Bounds.Width
+        shareScreenHeight = primaryScreen.Bounds.Height
+
+        Application.Current.Dispatcher.BeginInvoke(
+        New Action(Sub()
+                       RaiseEvent OnScreenDimensionsReady(shareScreenWidth, shareScreenHeight)
+                   End Sub))
     End Sub
 
     Public Sub Dispose() Implements IDisposable.Dispose

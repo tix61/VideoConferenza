@@ -43,6 +43,16 @@ Namespace VideoConference.Client
         Private _isAudioCapturing As Boolean = False
         Private _isAudioPlaying As Boolean = False
         Private _audioTimer As System.Threading.Timer
+        Private _highPassFilter As BiQuadFilter  ' Taglia i rumori a bassa frequenza (ventola)
+        Private _lowPassFilter As BiQuadFilter   ' Taglia i rumori ad alta frequenza (sibili)
+        Private _sampleRate As Integer = 22050
+        Private _voiceBoostFilter As BiQuadFilter
+
+        ' variabili per half-duplex
+        Private _isLocalSpeaking As Boolean = False
+        Private _lastLocalSpeechTime As DateTime = DateTime.Now
+        Private _speakingHoldTime As Integer = 500 ' ms - tempo di attesa dopo che smetti di parlare
+        Private _speakingThreshold As Integer = 300 ' Soglia per rilevare quando parli
 
         ' eventi per audio
         Public Event OnAudioStarted As Action
@@ -83,7 +93,6 @@ Namespace VideoConference.Client
             End Get
         End Property
 
-        ' Aggiungi queste proprietà
         Private _frameQuality As Integer = 30 ' Qualità JPEG (1-100)
         Private _maxFrameSize As Integer = 100000 ' 100KB max per frame
 
@@ -588,10 +597,28 @@ Namespace VideoConference.Client
                 ' Configura cattura audio
                 _waveIn = New WaveInEvent()
                 _waveIn.DeviceNumber = 0 ' Forza l'uso del primo microfono
-                '_waveIn.WaveFormat = New WaveFormat(44100, 16, 1) ' 44.1kHz, 16-bit, mono
-                _waveIn.WaveFormat = New WaveFormat(16000, 16, 1) ' 16kHz invece di 44.1kHz
+
+                ' DA (bassa qualità):
+                '_waveIn.WaveFormat = New WaveFormat(16000, 16, 1) ' 16kHz
+                ' A (qualità telefonica):
+                '_waveIn.WaveFormat = New WaveFormat(8000, 16, 1)  ' 8kHz - voce comprensibile
+                ' A (qualità radiofonica):
+                '_waveIn.WaveFormat = New WaveFormat(22050, 16, 1) ' 22.05kHz - buona qualità
+                ' A (qualità CD):
+                '_waveIn.WaveFormat = New WaveFormat(44100, 16, 1) ' 44.1kHz - qualità CD
+                _waveIn.WaveFormat = New WaveFormat(_sampleRate, 16, 1) ' 44.1kHz - qualità CD
+
                 AddHandler _waveIn.DataAvailable, AddressOf OnAudioDataAvailable
                 AddHandler _waveIn.RecordingStopped, AddressOf OnAudioRecordingStopped
+
+                ' INIZIALIZZA I FILTRI BIQUAD
+                ' Filtro passa-alto a 200Hz (elimina ventola e rumori di fondo)
+                _highPassFilter = BiQuadFilter.HighPassFilter(_sampleRate, 200, 0.707)
+
+                ' Filtro passa-basso a 4000Hz (elimina sibili e rumori ad alta frequenza)
+                _lowPassFilter = BiQuadFilter.LowPassFilter(_sampleRate, 4000, 0.707)
+
+                _voiceBoostFilter = BiQuadFilter.PeakingEQ(_sampleRate, 1000, 0.707, 3.0) ' +6dB a 1000Hz
 
                 Debug.Print($"WaveIn configurato: Device={_waveIn.DeviceNumber}, Format={_waveIn.WaveFormat.SampleRate}Hz, Buffer={_waveIn.BufferMilliseconds}ms")
 
@@ -604,8 +631,8 @@ Namespace VideoConference.Client
 
                 Debug.Print("Audio capture started successfully - DOVREBBE INIZIARE A RICEVERE DATI")
 
-                ' Timer per invio audio (riduce frame rate)
-                _audioTimer = New System.Threading.Timer(AddressOf SendAudioData, Nothing, 0, 100)
+                '' Timer per invio audio (riduce frame rate)
+                '_audioTimer = New System.Threading.Timer(AddressOf SendAudioData, Nothing, 0, 100)
 
                 RaiseEvent OnAudioStarted()
 
@@ -648,66 +675,190 @@ Namespace VideoConference.Client
         End Sub
 
         Private Sub OnAudioDataAvailable(sender As Object, e As WaveInEventArgs)
-            Try
 
+            'Try
+            '    If Not _isAudioCapturing OrElse e.BytesRecorded = 0 Then Return
+
+            '    Dim samples = e.BytesRecorded / 2
+            '    Dim floatBuffer = New Single(samples - 1) {}
+
+            '    ' Passo 1: Converti da short a float
+            '    For i As Integer = 0 To samples - 1
+            '        Dim lowByte = e.Buffer(i * 2)
+            '        Dim highByte = e.Buffer(i * 2 + 1)
+            '        Dim sample As Short = CShort(lowByte) Or (CShort(highByte) << 8)
+            '        floatBuffer(i) = sample / 32768.0F
+            '    Next
+
+            '    ' Passo 2: APPLICA I FILTRI (solo se inizializzati)
+            '    If _highPassFilter IsNot Nothing Then
+            '        For i As Integer = 0 To samples - 1
+            '            floatBuffer(i) = CSng(_highPassFilter.Transform(floatBuffer(i)))
+            '        Next
+            '    End If
+
+            '    If _lowPassFilter IsNot Nothing Then
+            '        For i As Integer = 0 To samples - 1
+            '            floatBuffer(i) = CSng(_lowPassFilter.Transform(floatBuffer(i)))
+            '        Next
+            '    End If
+
+            '    If _voiceBoostFilter IsNot Nothing Then
+            '        For i As Integer = 0 To samples - 1
+            '            floatBuffer(i) = CSng(_voiceBoostFilter.Transform(floatBuffer(i)))
+            '        Next
+            '    End If
+
+            '    ' Passo 3: Protezione dai NaN
+            '    For i As Integer = 0 To samples - 1
+            '        If Single.IsNaN(floatBuffer(i)) OrElse Single.IsInfinity(floatBuffer(i)) Then
+            '            floatBuffer(i) = 0.0F
+            '        End If
+            '    Next
+
+            '    ' Passo 4: Calcola volume (per noise gate)
+            '    Dim sum As Double = 0
+            '    For i As Integer = 0 To samples - 1
+            '        sum += Math.Abs(floatBuffer(i)) * 32768.0
+            '    Next
+            '    Dim avgVolume = CSng(sum / samples)
+
+            '    ' Noise gate semplice
+            '    If avgVolume > 150 Then
+            '        ' Passo 6: Riconverti da float a short
+            '        Dim processedBytes = New Byte(e.BytesRecorded - 1) {}
+            '        For i As Integer = 0 To samples - 1
+            '            ' Limita il range
+            '            Dim sampleValue = floatBuffer(i)
+            '            If sampleValue < -1.0F Then sampleValue = -1.0F
+            '            If sampleValue > 1.0F Then sampleValue = 1.0F
+
+            '            ' Converti in short
+            '            Dim intSample = CShort(sampleValue * 32767.0F)
+
+            '            ' Scrivi come byte
+            '            processedBytes(i * 2) = CByte(intSample And &HFF)
+            '            processedBytes(i * 2 + 1) = CByte((intSample >> 8) And &HFF)
+            '        Next
+
+            '        Task.Run(Sub() RaiseEvent OnAudioDataReady(processedBytes))
+            '    End If
+
+            'Catch ex As Exception
+            '    Debug.Print($"❌ Error: {ex.Message}")
+            'End Try
+
+
+            Try
                 If Not _isAudioCapturing OrElse e.BytesRecorded = 0 Then Return
 
-                ' Calcola volume
+                ' Calcola volume per rilevare se sto parlando
                 Dim sum As Long = 0
-                For i As Integer = 0 To e.BytesRecorded - 1 Step 2
-                    If i + 1 < e.BytesRecorded Then
-                        Dim sample = BitConverter.ToInt16(e.Buffer, i)
-                        sum += Math.Abs(sample)
-                    End If
-                Next
-                Dim avgVolume = CSng(sum) / (e.BytesRecorded / 2)
+                Dim sampleCount = e.BytesRecorded / 2
 
-                ' Rileva se qualcuno sta parlando
-                If avgVolume > _silenceThreshold Then
-                    _isSpeaking = True
-                    _lastSpeechTime = DateTime.Now
+                For i As Integer = 0 To e.BytesRecorded - 2 Step 2
+                    Dim lowByte = e.Buffer(i)
+                    Dim highByte = e.Buffer(i + 1)
+                    Dim sample As Short = CShort(lowByte) Or (CShort(highByte) << 8)
+                    sum += Math.Abs(sample)
+                Next
+                Dim avgVolume = CSng(sum) / sampleCount
+
+                ' Rileva se sto parlando (volume sopra soglia)
+                Dim isCurrentlySpeaking = avgVolume > _speakingThreshold
+
+                If isCurrentlySpeaking Then
+                    ' Se non stavo già parlando, log
+                    If Not _isLocalSpeaking Then
+                        Debug.Print("🗣️ Inizio a parlare")
+                    End If
+                    _isLocalSpeaking = True
+                    _lastLocalSpeechTime = DateTime.Now
+                Else
+                    ' Se ho smesso di parlare, mantieni lo stato per _speakingHoldTime
+                    If _isLocalSpeaking AndAlso (DateTime.Now - _lastLocalSpeechTime).TotalMilliseconds > _speakingHoldTime Then
+                        _isLocalSpeaking = False
+                        Debug.Print("🔇 Fine parlato")
+                    End If
                 End If
 
-                ' I dati audio sono pronti per essere inviati o riprodotti
-                If _isAudioCapturing AndAlso e.BytesRecorded > 0 Then
+                ' Filtri e invio audio (sempre, tanto la ricezione lo bloccherà)
+                If avgVolume > 500 Then
+                    ' Converti in float per filtri
+                    Dim samples = e.BytesRecorded / 2
+                    Dim floatBuffer = New Single(samples - 1) {}
+                    For i As Integer = 0 To samples - 1
+                        Dim lowByte = e.Buffer(i * 2)
+                        Dim highByte = e.Buffer(i * 2 + 1)
+                        Dim sample As Short = CShort(lowByte) Or (CShort(highByte) << 8)
+                        floatBuffer(i) = sample / 32768.0F
+                    Next
 
-                    ' Invia audio solo se:
-                    ' 1. Il volume è sopra la soglia (qualcuno parla)
-                    ' 2. Non stiamo già riproducendo audio (per evitare eco)
-                    ' 3. Non è passato troppo tempo dall'ultima volta che qualcuno ha parlato
-                    If avgVolume > _silenceThreshold AndAlso Not _isAudioPlaying Then
-                        ' SAMPLE RATE CONVERSION: riduci ulteriormente se necessario
-                        ' Per ora inviamo solo 1 pacchetto ogni 2 per ridurre traffico
-                        Static skipCounter As Integer = 0
-                        skipCounter += 1
-                        If skipCounter Mod 2 = 0 Then ' Invia solo metà pacchetti
-
-                            ' Copia i dati
-                            Dim audioData = New Byte(e.BytesRecorded - 1) {}
-                            Array.Copy(e.Buffer, audioData, e.BytesRecorded)
-
-                            ' Invia in background
-                            Task.Run(Sub() RaiseEvent OnAudioDataReady(audioData))
-                        End If
-
-                        ' Buffer locale (sempre attivo per sentire se stai parlando)
-                        If _isAudioPlaying AndAlso _bufferedWaveProvider IsNot Nothing Then
-                            _bufferedWaveProvider.AddSamples(e.Buffer, 0, e.BytesRecorded)
-                        End If
+                    ' Passo 2: APPLICA I FILTRI (solo se inizializzati)
+                    If _highPassFilter IsNot Nothing Then
+                        For i As Integer = 0 To samples - 1
+                            floatBuffer(i) = CSng(_highPassFilter.Transform(floatBuffer(i)))
+                        Next
                     End If
 
-                    ' Reset stato parlato dopo un periodo di silenzio
-                    If _isSpeaking AndAlso (DateTime.Now - _lastSpeechTime).TotalMilliseconds > _speakingTimeout Then
-                        _isSpeaking = False
-                        Debug.Print("AUDIO: Fine conversazione")
+                    If _lowPassFilter IsNot Nothing Then
+                        For i As Integer = 0 To samples - 1
+                            floatBuffer(i) = CSng(_lowPassFilter.Transform(floatBuffer(i)))
+                        Next
                     End If
+
+                    If _voiceBoostFilter IsNot Nothing Then
+                        For i As Integer = 0 To samples - 1
+                            floatBuffer(i) = CSng(_voiceBoostFilter.Transform(floatBuffer(i)))
+                        Next
+                    End If
+
+                    ' Passo 3: Protezione dai NaN
+                    For i As Integer = 0 To samples - 1
+                        If Single.IsNaN(floatBuffer(i)) OrElse Single.IsInfinity(floatBuffer(i)) Then
+                            floatBuffer(i) = 0.0F
+                        End If
+                    Next
+
+                    ' Riconverti in byte
+                    Dim processedBytes = New Byte(e.BytesRecorded - 1) {}
+                    For i As Integer = 0 To samples - 1
+                        Dim intSample = CShort(floatBuffer(i) * 32767.0F)
+                        processedBytes(i * 2) = CByte(intSample And &HFF)
+                        processedBytes(i * 2 + 1) = CByte((intSample >> 8) And &HFF)
+                    Next
+
+                    Task.Run(Sub() RaiseEvent OnAudioDataReady(processedBytes))
 
                 End If
 
             Catch ex As Exception
-                Debug.Print($"Error processing audio data: {ex.Message}")
+                Debug.Print($"❌ Error in OnAudioDataAvailable: {ex.Message}")
             End Try
+
         End Sub
+
+        Private Function ApplyHighPassFilter(buffer As Byte(), length As Integer) As Byte()
+            ' Copia il buffer originale
+            Dim result = New Byte(length - 1) {}
+            Array.Copy(buffer, result, length)
+
+            ' Filtro passa-alto semplice (rimuove le frequenze basse)
+            ' Questo è un filtro molto semplice - per risultati migliori, 
+            ' considera l'uso di NAudio.Dsp.BiQuadFilter
+
+            ' Per ora, applichiamo un filtro differenziale (enfatizza i cambiamenti)
+            For i As Integer = 2 To length - 1 Step 2
+                Dim current = BitConverter.ToInt16(result, i)
+                Dim previous = BitConverter.ToInt16(result, i - 2)
+                Dim filtered = CShort(current - previous * 0.9) ' Semplice filtro
+
+                result(i) = CByte(filtered And &HFF)
+                result(i + 1) = CByte((filtered >> 8) And &HFF)
+            Next
+
+            Return result
+        End Function
 
         Private Sub OnAudioRecordingStopped(sender As Object, e As StoppedEventArgs)
             Debug.Print($"Audio recording stopped: {e.Exception?.Message}")
@@ -721,56 +872,159 @@ Namespace VideoConference.Client
         End Sub
 
         ' Metodo per ricevere e riprodurre audio remoto
+        'Public Sub ReceiveRemoteAudio(audioData As Byte())
+        '    Try
+        '        If audioData Is Nothing OrElse audioData.Length = 0 Then
+        '            Debug.Print("AUDIO DEBUG: Dati audio nulli o vuoti")
+        '            Return
+        '        End If
+
+
+        '        Debug.Print($"AUDIO DEBUG: Ricevuti {audioData.Length} bytes")
+
+        '        ' Se non abbiamo ancora inizializzato la riproduzione, fallo
+        '        If Not _isAudioPlaying Then
+        '            Debug.Print("AUDIO DEBUG: Inizializzo riproduzione audio")
+        '            InitializeAudioPlayback()
+        '        End If
+
+        '        ' Aggiungi i dati audio al buffer per la riproduzione
+        '        If _bufferedWaveProvider IsNot Nothing Then
+        '            _bufferedWaveProvider.AddSamples(audioData, 0, audioData.Length)
+        '            Debug.Print($"DEBUG: Added {audioData.Length} bytes to audio buffer")
+        '        Else
+        '            Debug.Print("AUDIO DEBUG: _bufferedWaveProvider è null!")
+        '        End If
+
+        '    Catch ex As Exception
+        '        Debug.Print($"Error receiving remote audio: {ex.Message}")
+        '    End Try
+        'End Sub
+
+
         Public Sub ReceiveRemoteAudio(audioData As Byte())
             Try
+                Debug.Print($"🎧 ReceiveRemoteAudio: {audioData?.Length} bytes")
+
                 If audioData Is Nothing OrElse audioData.Length = 0 Then
-                    Debug.Print("AUDIO DEBUG: Dati audio nulli o vuoti")
+                    Debug.Print("❌ audioData nullo o vuoto")
                     Return
                 End If
 
-                Debug.Print($"AUDIO DEBUG: Ricevuti {audioData.Length} bytes")
+                Application.Current.Dispatcher.Invoke(
+                            Sub()
+                                Try
+                                    ' SE _bufferedWaveProvider È NULL, CREALO!
+                                    If _bufferedWaveProvider Is Nothing Then
+                                        Debug.Print("🎧 CREAZIONE _bufferedWaveProvider")
+                                        ' Usa lo stesso formato dell'input (16kHz, 16-bit, mono)
+                                        _bufferedWaveProvider = New BufferedWaveProvider(New WaveFormat(16000, 16, 1))
+                                        _bufferedWaveProvider.BufferDuration = TimeSpan.FromSeconds(2)
+                                        _bufferedWaveProvider.DiscardOnBufferOverflow = True
+                                        Debug.Print($"✅ _bufferedWaveProvider creato: {_bufferedWaveProvider.WaveFormat}")
+                                    End If
 
-                ' Se non abbiamo ancora inizializzato la riproduzione, fallo
-                If Not _isAudioPlaying Then
-                    Debug.Print("AUDIO DEBUG: Inizializzo riproduzione audio")
-                    InitializeAudioPlayback()
-                End If
+                                    ' Ora inizializza WaveOut se necessario
+                                    If _waveOut Is Nothing Then
+                                        Debug.Print("🎧 Inizializzo WaveOut...")
+                                        InitializeAudioPlayback()
+                                    End If
 
-                ' Aggiungi i dati audio al buffer per la riproduzione
-                If _bufferedWaveProvider IsNot Nothing Then
-                    _bufferedWaveProvider.AddSamples(audioData, 0, audioData.Length)
-                    Debug.Print($"DEBUG: Added {audioData.Length} bytes to audio buffer")
-                Else
-                    Debug.Print("AUDIO DEBUG: _bufferedWaveProvider è null!")
-                End If
+                                    ' Aggiungi i dati al buffer
+                                    If _bufferedWaveProvider IsNot Nothing Then
+                                        _bufferedWaveProvider.AddSamples(audioData, 0, audioData.Length)
+                                        Debug.Print($"🎧 Aggiunti {audioData.Length} bytes al buffer. Buffer: {_bufferedWaveProvider.BufferedBytes} bytes")
+
+                                        ' Se WaveOut esiste ma non sta riproducendo, avvialo
+                                        If _waveOut IsNot Nothing AndAlso _waveOut.PlaybackState <> PlaybackState.Playing Then
+                                            _waveOut.Play()
+                                            Debug.Print("🎧 WaveOut riavviato")
+                                        End If
+                                    End If
+
+                                Catch ex As InvalidOperationException
+                                    Debug.Print($"⚠️ InvalidOperationException: {ex.Message}")
+                                    ' Ricrea tutto
+                                    _waveOut?.Dispose()
+                                    _waveOut = Nothing
+                                    _bufferedWaveProvider = Nothing
+
+                                    ' Riprova
+                                    Application.Current.Dispatcher.Invoke(Sub()
+                                                                              _bufferedWaveProvider = New BufferedWaveProvider(New WaveFormat(16000, 16, 1))
+                                                                              _waveOut = New WaveOutEvent()
+                                                                              _waveOut.Init(_bufferedWaveProvider)
+                                                                              _waveOut.Play()
+                                                                              _bufferedWaveProvider.AddSamples(audioData, 0, audioData.Length)
+                                                                          End Sub)
+                                End Try
+                            End Sub)
 
             Catch ex As Exception
-                Debug.Print($"Error receiving remote audio: {ex.Message}")
+                Debug.Print($"❌ ReceiveRemoteAudio error: {ex.Message}")
             End Try
         End Sub
 
+        'Private Sub InitializeAudioPlayback()
+        '    Try
+        '        If _waveOut Is Nothing AndAlso _bufferedWaveProvider IsNot Nothing Then
+        '            Debug.Print("AUDIO DEBUG: Creazione WaveOut...")
+
+        '            _waveOut = New WaveOutEvent()
+        '            _waveOut.Init(_bufferedWaveProvider)
+        '            _waveOut.Play()
+        '            _isAudioPlaying = True
+        '            Debug.Print($"AUDIO DEBUG: WaveOut creato e avviato. Volume: {_waveOut.Volume}")
+
+        '            Debug.Print("Audio playback initialized")
+
+        '            ' Verifica dispositivo audio
+        '            For i As Integer = 0 To WaveOut.DeviceCount - 1
+        '                Dim caps = WaveOut.GetCapabilities(i)
+        '                Debug.Print($"AUDIO DEBUG: Device {i}: {caps.ProductName}")
+        '            Next
+
+        '        End If
+        '    Catch ex As Exception
+        '        Debug.Print($"Error initializing audio playback: {ex.Message}")
+        '        RaiseEvent OnAudioError($"Cannot initialize audio playback: {ex.Message}")
+        '    End Try
+        'End Sub
+
         Private Sub InitializeAudioPlayback()
             Try
-                If _waveOut Is Nothing AndAlso _bufferedWaveProvider IsNot Nothing Then
-                    Debug.Print("AUDIO DEBUG: Creazione WaveOut...")
+                ' Verifica dispositivi di output
+                Debug.Print($"Passo 3: WaveOut.DeviceCount = {WaveOut.DeviceCount}")
+                For i As Integer = 0 To WaveOut.DeviceCount - 1
+                    Dim caps = WaveOut.GetCapabilities(i)
+                    Debug.Print($"  Device {i}: {caps.ProductName}")
+                Next
 
-                    _waveOut = New WaveOutEvent()
-                    _waveOut.Init(_bufferedWaveProvider)
-                    _waveOut.Play()
-                    _isAudioPlaying = True
-                    Debug.Print($"AUDIO DEBUG: WaveOut creato e avviato. Volume: {_waveOut.Volume}")
-
-                    Debug.Print("Audio playback initialized")
-
-                    ' Verifica dispositivo audio
-                    For i As Integer = 0 To WaveOut.DeviceCount - 1
-                        Dim caps = WaveOut.GetCapabilities(i)
-                        Debug.Print($"AUDIO DEBUG: Device {i}: {caps.ProductName}")
-                    Next
-
+                If WaveOut.DeviceCount = 0 Then
+                    Debug.Print("❌ Nessun dispositivo di output!")
+                    Return
                 End If
+
+
+                ' Se _bufferedWaveProvider è ancora null, crealo con formato default
+                If _bufferedWaveProvider Is Nothing Then
+                    _bufferedWaveProvider = New BufferedWaveProvider(New WaveFormat(_sampleRate, 16, 1))
+                    _bufferedWaveProvider.BufferDuration = TimeSpan.FromSeconds(2)
+                    _bufferedWaveProvider.DiscardOnBufferOverflow = True
+                Else
+                    Debug.Print($"Passo 4: _bufferedWaveProvider già esistente: {_bufferedWaveProvider.WaveFormat}")
+                End If
+
+                ' Crea WaveOut
+                _waveOut = New WaveOutEvent()
+                _waveOut.DeviceNumber = 0
+                _waveOut.Init(_bufferedWaveProvider)
+                _waveOut.Play()
+                _isAudioPlaying = True
+
             Catch ex As Exception
-                Debug.Print($"Error initializing audio playback: {ex.Message}")
+                Debug.Print($"❌ ERRORE in InitializeAudioPlayback: {ex.Message}")
+                Debug.Print($"   Stack: {ex.StackTrace}")
                 RaiseEvent OnAudioError($"Cannot initialize audio playback: {ex.Message}")
             End Try
         End Sub

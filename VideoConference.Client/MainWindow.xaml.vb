@@ -9,6 +9,7 @@ Imports System.Runtime.CompilerServices
 Imports System.Security.Cryptography.X509Certificates
 Imports System.Windows
 Imports System.Windows.Controls
+'Imports System.Windows.Forms
 Imports System.Windows.Input
 Imports System.Windows.Media
 Imports System.Windows.Media.Imaging
@@ -26,16 +27,29 @@ Class MainWindow
     Private _remoteConnectionId As String = ""
     Private _videoManager As VideoManager
     Private _isVideoStarted As Boolean = False
-    Private _isSendingVideo As Boolean = False
     Private _frameSendTimer As Timers.Timer
     Private _isAudioStarted As Boolean = False
     Private _isMicMuted As Boolean = False
     Private _screenShareManager As ScreenShareManager
     Private _isSharingScreen As Boolean = False
 
+    ' Variabile per tenere traccia del cursore remoto
+    Private _cursorHighlight As System.Windows.Shapes.Shape
+    'Private _remoteCursorElement As System.Windows.Shapes.Path
+    Private _remoteCursorElement As System.Windows.Controls.Image
+    Private _remoteCursorPosition As Point
+    Private _cursorDot As System.Windows.Shapes.Ellipse
+    Private _cursorShadow As System.Windows.Shapes.Path
+
+    Private _remoteScreenWidth As Integer = 1920  ' Default
+    Private _remoteScreenHeight As Integer = 1080 ' Default
+
     Private _participants As New ObservableCollection(Of Participant)
     Private _chatMessages As New ObservableCollection(Of ChatMessage)
     Private _remoteVideoSources As New Dictionary(Of String, WriteableBitmap)
+
+    Private _isChatCollapsed As Boolean = False
+    Private _originalChatWidth As Double = 3 ' Valore originale della colonna chat (3*)
 
     Public Event PropertyChanged As PropertyChangedEventHandler Implements INotifyPropertyChanged.PropertyChanged
 
@@ -93,7 +107,9 @@ Class MainWindow
         AddHandler btnStopVideo.Click, AddressOf btnStopVideo_Click
         AddHandler btnStartAudio.Click, AddressOf btnStartAudio_Click
         AddHandler btnStopAudio.Click, AddressOf btnStopAudio_Click
-        AddHandler btnTestAudio.Click, AddressOf btnTestAudio_Click
+        'AddHandler btnTestAudio.Click, AddressOf btnTestAudio_Click
+        'AddHandler btnTestAudioSend.Click, AddressOf btnTestAudioSend_Click
+        'AddHandler btnTestCursor.Click, AddressOf btnTestCursor_Click
 
         ' Handler per screen share
         AddHandler btnShareScreen.Click, AddressOf btnShareScreen_Click
@@ -102,7 +118,7 @@ Class MainWindow
         ' Handler per i controlli chat
         AddHandler btnSendChat.Click, AddressOf btnSendChat_Click
         AddHandler txtChatMessage.KeyDown, AddressOf txtChatMessage_KeyDown
-        AddHandler cmbScreenStretch.SelectionChanged, AddressOf cmbScreenStretch_SelectionChanged
+        'AddHandler cmbScreenStretch.SelectionChanged, AddressOf cmbScreenStretch_SelectionChanged
 
     End Sub
 
@@ -166,7 +182,7 @@ Class MainWindow
             ' Configura evento per invio frame
             AddHandler _videoManager.OnFrameReadyToSend,
             Sub(frameData As Byte(), width As Integer, height As Integer)
-                If _isSendingVideo AndAlso IsConnected AndAlso Not String.IsNullOrEmpty(_remoteConnectionId) Then
+                If _isVideoStarted AndAlso IsConnected Then
                     SendVideoFrame(frameData, width, height)
                 End If
             End Sub
@@ -248,60 +264,12 @@ Class MainWindow
         End Try
     End Sub
 
-    'Private Sub InitializeScreenShare()
-    '    Try
-    '        _screenShareManager = New ScreenShareManager()
-
-    '        AddHandler _screenShareManager.OnScreenError,
-    '        Sub(errorMessage)
-    '            Dispatcher.Invoke(Sub()
-    '                                  MessageBox.Show($"Errore condivisione schermo: {errorMessage}",
-    '                              "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
-    '                              End Sub)
-    '        End Sub
-
-    '        AddHandler _screenShareManager.OnScreenShareStarted,
-    '        Sub()
-    '            Dispatcher.Invoke(Sub()
-    '                                  _isSharingScreen = True
-    '                                  txtStatus.Text = "Condivisione schermo attiva"
-    '                                  UpdateUI()
-    '                              End Sub)
-    '        End Sub
-
-    '        AddHandler _screenShareManager.OnScreenShareStopped,
-    '        Sub()
-    '            Dispatcher.Invoke(Sub()
-    '                                  _isSharingScreen = False
-    '                                  txtStatus.Text = "Condivisione schermo fermata"
-    '                                  UpdateUI()
-    '                              End Sub)
-    '        End Sub
-
-    '        AddHandler _screenShareManager.OnScreenFrameReady,
-    '        Sub(frameData As Byte(), width As Integer, height As Integer)
-    '            If IsConnected AndAlso Not String.IsNullOrEmpty(_remoteConnectionId) Then
-    '                SendScreenFrame(frameData, width, height)
-    '            End If
-    '        End Sub
-
-    '        ' Aggiungi preview alla UI (opzionale)
-    '        Dim screenPreviewBinding As New System.Windows.Data.Binding()
-    '        screenPreviewBinding.Source = _screenShareManager
-    '        screenPreviewBinding.Path = New PropertyPath("ScreenPreview")
-    '        localVideoImage.SetBinding(Image.SourceProperty, screenPreviewBinding)
-
-    '        Debug.Print("ScreenShareManager initialized")
-
-    '    Catch ex As Exception
-    '        MessageBox.Show($"Errore inizializzazione screen share: {ex.Message}",
-    '                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
-    '    End Try
-    'End Sub
-
     Private Sub InitializeScreenShare()
         Try
-            _screenShareManager = New ScreenShareManager()
+            If _screenShareManager Is Nothing Then
+                _screenShareManager = New ScreenShareManager()
+                Debug.Print("ScreenShareManager CREATO ex-novo")
+            End If
 
             AddHandler _screenShareManager.OnScreenError,
             Sub(errorMessage)
@@ -349,6 +317,25 @@ Class MainWindow
             '    End If
             'End Sub
 
+            ' Handler per posizione cursore
+            AddHandler _screenShareManager.OnCursorPositionChanged,
+            Sub(x As Integer, y As Integer)
+                If IsConnected AndAlso _isSharingScreen Then
+                    ' Invia coordinate al server
+                    SendCursorPosition(x, y)
+                End If
+            End Sub
+
+            AddHandler _screenShareManager.OnScreenDimensionsReady,
+                Sub(width As Integer, height As Integer)
+                    If IsConnected Then
+                        _connection.InvokeAsync("SendScreenDimensions", txtRoomId.Text, width, height)
+                    End If
+                End Sub
+
+            ' Inizializza il cursore remoto
+            InitializeRemoteCursor()
+
             Debug.Print("ScreenShareManager initialized")
 
         Catch ex As Exception
@@ -360,7 +347,10 @@ Class MainWindow
     Private Async Sub SendVideoFrame(frameData As Byte(), width As Integer, height As Integer)
         Try
             If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
-                Await _connection.InvokeAsync("SendVideoFrameToAll", txtRoomId.Text, frameData, width, height)
+                Dim currentRoomId As String = ""
+                Dispatcher.Invoke(Sub() currentRoomId = txtRoomId.Text)
+
+                Await _connection.InvokeAsync("SendVideoFrameToAll", currentRoomId, frameData, width, height)
             End If
         Catch ex As Exception
             Debug.Print($"Error sending video frame: {ex.Message}")
@@ -384,38 +374,61 @@ Class MainWindow
     '    End Try
     'End Sub
 
+    'Private Async Sub SendAudioData(audioData As Byte())
+    '    Try
+    '        ' Variabili per memorizzare lo stato della connessione (thread-safe)
+    '        Dim canSend As Boolean = False
+    '        Dim currentRoomId As String = ""
+
+    '        ' Accedi agli oggetti UI in modo thread-safe
+    '        Dispatcher.Invoke(Sub()
+    '                              If _connection IsNot Nothing Then
+    '                                  canSend = (_connection.State = HubConnectionState.Connected)
+    '                                  currentRoomId = txtRoomId.Text
+    '                                  Debug.Print($"UI Thread - Stato connessione: {_connection.State}, Room: {currentRoomId}")
+    '                              Else
+    '                                  Debug.Print("UI Thread - _connection è null")
+    '                              End If
+    '                          End Sub)
+
+    '        ' Ora possiamo usare currentConnection in modo sicuro
+    '        If canSend Then
+    '            Debug.Print($"*** MAIN: Invio audio a tutti, {audioData.Length} bytes, room: {currentRoomId}")
+
+    '            ' La chiamata a InvokeAsync non richiede Dispatcher
+    '            Await _connection.InvokeAsync("SendAudioDataToAll", currentRoomId, audioData)
+
+    '            Debug.Print("*** MAIN: Audio inviato con successo")
+    '        Else
+    '            Debug.Print("*** MAIN: Connessione non attiva per invio audio")
+    '        End If
+
+    '    Catch ex As Exception
+    '        Debug.Print($"*** MAIN: Errore invio audio: {ex.Message}")
+    '        Debug.Print($"StackTrace: {ex.StackTrace}")
+    '    End Try
+    'End Sub
+
     Private Async Sub SendAudioData(audioData As Byte())
         Try
-            ' Variabili per memorizzare lo stato della connessione (thread-safe)
+            Debug.Print($"📤 SendAudioData: {audioData.Length} bytes")
+
             Dim canSend As Boolean = False
             Dim currentRoomId As String = ""
 
-            ' Accedi agli oggetti UI in modo thread-safe
             Dispatcher.Invoke(Sub()
-                                  If _connection IsNot Nothing Then
-                                      canSend = (_connection.State = HubConnectionState.Connected)
-                                      currentRoomId = txtRoomId.Text
-                                      Debug.Print($"UI Thread - Stato connessione: {_connection.State}, Room: {currentRoomId}")
-                                  Else
-                                      Debug.Print("UI Thread - _connection è null")
-                                  End If
+                                  canSend = (_connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected)
+                                  currentRoomId = txtRoomId.Text
                               End Sub)
 
-            ' Ora possiamo usare currentConnection in modo sicuro
             If canSend Then
-                Debug.Print($"*** MAIN: Invio audio a tutti, {audioData.Length} bytes, room: {currentRoomId}")
-
-                ' La chiamata a InvokeAsync non richiede Dispatcher
+                Debug.Print($"📤 Invio a server: room='{currentRoomId}'")
                 Await _connection.InvokeAsync("SendAudioDataToAll", currentRoomId, audioData)
-
-                Debug.Print("*** MAIN: Audio inviato con successo")
-            Else
-                Debug.Print("*** MAIN: Connessione non attiva per invio audio")
+                Debug.Print($"📤 Invio completato")
             End If
 
         Catch ex As Exception
-            Debug.Print($"*** MAIN: Errore invio audio: {ex.Message}")
-            Debug.Print($"StackTrace: {ex.StackTrace}")
+            Debug.Print($"❌ Errore SendAudioData: {ex.Message}")
         End Try
     End Sub
 
@@ -455,18 +468,12 @@ Class MainWindow
             txtStatus.Text = "Connessione in corso..."
 
             ' Crea la connessione con le opzioni custom
-            '_connection = New HubConnectionBuilder().
-            'WithUrl(txtServerUrl.Text.Trim() & "/conferencehub", connectionOptions).
-            'WithAutomaticReconnect().
-            'Build()
-            ''ConfigureLogging(Sub(logging) logging.AddConsole()).
-
             _connection = New HubConnectionBuilder().
                                 WithUrl(txtServerUrl.Text.Trim() & "/conferencehub", connectionOptions).
                                 WithAutomaticReconnect().
                                 ConfigureLogging(Sub(logging As ILoggingBuilder)
                                                      logging.AddDebug()
-                                                     logging.SetMinimumLevel(LogLevel.Debug)
+                                                     logging.SetMinimumLevel(LogLevel.Warning)  ' Solo warning ed errori
                                                  End Sub).
                                 WithServerTimeout(TimeSpan.FromSeconds(60)).          ' Timeout server
                                 WithKeepAliveInterval(TimeSpan.FromSeconds(15)).      ' Keep-alive
@@ -577,45 +584,50 @@ Class MainWindow
                                 Dispatcher.Invoke(Sub()
                                                       Try
                                                           Debug.Print($"Ricevuto video frame da {senderConnectionId}, {width}x{height}, {frameData.Length} bytes")
+                                                          If frameData IsNot Nothing AndAlso frameData.Length > 0 Then
+                                                              ' Converti in BitmapImage
+                                                              Dim bitmapImage As New BitmapImage()
+                                                              Using stream = New IO.MemoryStream(frameData)
+                                                                  bitmapImage.BeginInit()
+                                                                  bitmapImage.CacheOption = BitmapCacheOption.OnLoad
+                                                                  bitmapImage.StreamSource = stream
+                                                                  bitmapImage.EndInit()
+                                                                  bitmapImage.Freeze()
+                                                              End Using
 
-                                                          ' Converti in BitmapImage
-                                                          Dim bitmapImage As New BitmapImage()
-                                                          Using stream = New IO.MemoryStream(frameData)
-                                                              bitmapImage.BeginInit()
-                                                              bitmapImage.CacheOption = BitmapCacheOption.OnLoad
-                                                              bitmapImage.StreamSource = stream
-                                                              bitmapImage.EndInit()
-                                                              bitmapImage.Freeze()
-                                                          End Using
+                                                              ' Salva il sender come remoteConnectionId se non già impostato
+                                                              'If String.IsNullOrEmpty(_remoteConnectionId) Then
+                                                              _remoteConnectionId = senderConnectionId
+                                                              'End If
 
-                                                          ' IMPORTANTE: Aggiorna remoteVideoImage (colonna destra)
-                                                          remoteVideoImage.Source = bitmapImage
-                                                          txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+                                                              ' IMPORTANTE: Aggiorna remoteVideoImage (colonna destra)
+                                                              remoteVideoImage.Source = bitmapImage
+                                                              txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
 
-                                                          '' Se è il remote principale, aggiorna remoteVideoImage
-                                                          'If senderConnectionId = _remoteConnectionId Then
-                                                          '    'remoteVideoImage.Source = bitmapImage
-                                                          '    'txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+                                                              '' Se è il remote principale, aggiorna remoteVideoImage
+                                                              'If senderConnectionId = _remoteConnectionId Then
+                                                              '    'remoteVideoImage.Source = bitmapImage
+                                                              '    'txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
 
-                                                          '    ' Aggiorna anche nella lista partecipanti
-                                                          '    Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
-                                                          '    If participant IsNot Nothing Then
-                                                          '        participant.VideoSource = bitmapImage
-                                                          '        participant.HasVideo = True
-                                                          '    End If
-                                                          'End If
+                                                              '    ' Aggiorna anche nella lista partecipanti
+                                                              '    Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                                              '    If participant IsNot Nothing Then
+                                                              '        participant.VideoSource = bitmapImage
+                                                              '        participant.HasVideo = True
+                                                              '    End If
+                                                              'End If
 
-                                                          ' Se vuoi anche aggiornare l'anteprima nella lista partecipanti
-                                                          Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
-                                                          If participant IsNot Nothing Then
-                                                              participant.VideoSource = bitmapImage
-                                                              participant.HasVideo = True
+                                                              ' Se vuoi anche aggiornare l'anteprima nella lista partecipanti
+                                                              Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                                              If participant IsNot Nothing Then
+                                                                  participant.VideoSource = bitmapImage
+                                                                  participant.HasVideo = True
+                                                              End If
+
+                                                              ' AGGIUNGI ALLA LISTA ANTEPRIME (per icRemoteWebcams)
+                                                              ' Qui puoi implementare un ItemsControl separato per le anteprime
+                                                              UpdateRemoteWebcamPreview(senderConnectionId, bitmapImage)
                                                           End If
-
-                                                          ' AGGIUNGI ALLA LISTA ANTEPRIME (per icRemoteWebcams)
-                                                          ' Qui puoi implementare un ItemsControl separato per le anteprime
-                                                          UpdateRemoteWebcamPreview(senderConnectionId, bitmapImage)
-
                                                       Catch ex As Exception
                                                           Debug.Print($"Error processing remote video: {ex.Message}")
                                                       End Try
@@ -640,50 +652,63 @@ Class MainWindow
 
             ' Handler per UserJoined - AGGIORNA LISTA PARTECIPANTI
             _connection.On(Of String, String)("UserJoined",
-        Sub(connectionId, userName)
-            Debug.Print($"UserJoined: {userName} ({connectionId})")
+                                    Sub(connectionId, userName)
+                                        Debug.Print($"UserJoined: {userName} ({connectionId})")
 
-            Dispatcher.Invoke(Sub()
-                                  ' Aggiungi alla lista partecipanti
-                                  Dim participant As New Participant With {
-                    .ConnectionId = connectionId,
-                    .UserName = userName,
-                    .HasVideo = False,
-                    .HasAudio = False
-                }
-                                  _participants.Add(participant)
+                                        Dispatcher.Invoke(Sub()
+                                                              ' IMPORTANTE: Se non ho ancora un remote, questo è il mio remote
+                                                              'If String.IsNullOrEmpty(_remoteConnectionId) Then
+                                                              _remoteConnectionId = connectionId
+                                                              'End If
 
-                                  ' Aggiorna GroupBox header
-                                  UpdateParticipantsHeader()
-                              End Sub)
-        End Sub)
+                                                              ' Aggiungi alla lista partecipanti
+                                                              Dim participant As New Participant With {
+                                                                                                        .ConnectionId = connectionId,
+                                                                                                        .UserName = userName,
+                                                                                                        .HasVideo = False,
+                                                                                                        .HasAudio = False
+                                                                                                        }
+                                                              _participants.Add(participant)
+
+                                                              ' Aggiorna GroupBox header
+                                                              UpdateParticipantsHeader()
+                                                          End Sub)
+                                    End Sub)
 
             ' Handler per UserLeft - RIMUOVI DALLA LISTA
             _connection.On(Of String)("UserLeft",
-        Sub(connectionId)
-            Debug.Print($"UserLeft: {connectionId}")
-            Dispatcher.Invoke(Sub()
-                                  ' Rimuovi dalla lista
-                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
-                                  If participant IsNot Nothing Then
-                                      _participants.Remove(participant)
-                                  End If
+                        Sub(connectionId)
+                            Debug.Print($"UserLeft: {connectionId}")
+                            Dispatcher.Invoke(Sub()
+                                                  'Se era il remote principale, pulisci
+                                                  'If connectionId = _remoteConnectionId Then
+                                                  localVideoImage.Source = Nothing
+                                                  remoteVideoImage.Source = Nothing
+                                                  txtRemoteVideoPlaceholder.Visibility = Visibility.Visible
+                                                  _remoteConnectionId = ""
+                                                  'End If
 
-                                  ' Rimuovi anche dalle anteprime
-                                  If _remoteVideoSources.ContainsKey(connectionId) Then
-                                      _remoteVideoSources.Remove(connectionId)
-                                  End If
+                                                  ' Rimuovi dalla lista
+                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
+                                                  If participant IsNot Nothing Then
+                                                      _participants.Remove(participant)
+                                                  End If
 
-                                  ' Aggiorna GroupBox header
-                                  UpdateParticipantsHeader()
+                                                  ' Rimuovi anche dalle anteprime
+                                                  If _remoteVideoSources.ContainsKey(connectionId) Then
+                                                      _remoteVideoSources.Remove(connectionId)
+                                                  End If
 
-                                  ' Se era il remote principale, pulisci
-                                  If _remoteConnectionId = connectionId Then
-                                      _remoteConnectionId = ""
-                                      remoteVideoImage.Source = Nothing
-                                  End If
-                              End Sub)
-        End Sub)
+                                                  ' Aggiorna GroupBox header
+                                                  UpdateParticipantsHeader()
+
+                                                  '' Se era il remote principale, pulisci
+                                                  'If _remoteConnectionId = connectionId Then
+                                                  '    _remoteConnectionId = ""
+                                                  '    remoteVideoImage.Source = Nothing
+                                                  'End If
+                                              End Sub)
+                        End Sub)
 
             ' Handler per ExistingUsers
             '_connection.On(Of Object)("ExistingUsers",
@@ -713,20 +738,70 @@ Class MainWindow
             '                                      End Sub)
             '                End Sub)
 
-            _connection.On(Of List(Of UserInfo))("ExistingUsers",
-                            Sub(usersList)
+            _connection.On(Of System.Text.Json.JsonElement)("ExistingUsers",
+                            Sub(jsonElement)
                                 Dispatcher.Invoke(Sub()
+                                                      Dim usersList As New List(Of UserInfo)()
+
+                                                      ' Verifica che sia un array
+                                                      If jsonElement.ValueKind = System.Text.Json.JsonValueKind.Array Then
+                                                          Debug.Print($"📋 È un array con {jsonElement.GetArrayLength()} elementi")
+
+                                                          For Each item In jsonElement.EnumerateArray()
+                                                              Try
+                                                                  Dim user As New UserInfo()
+
+                                                                  ' Estrai le proprietà in modo sicuro
+                                                                  Dim prop As System.Text.Json.JsonElement
+                                                                  If item.TryGetProperty("connectionId", prop) Then
+                                                                      user.ConnectionId = prop.GetString()
+                                                                  End If
+
+                                                                  If item.TryGetProperty("userName", prop) Then
+                                                                      user.UserName = prop.GetString()
+                                                                  End If
+
+                                                                  If item.TryGetProperty("hasVideo", prop) Then
+                                                                      user.HasVideo = prop.GetBoolean()
+                                                                  End If
+
+                                                                  If item.TryGetProperty("hasAudio", prop) Then
+                                                                      user.HasAudio = prop.GetBoolean()
+                                                                  End If
+
+                                                                  If item.TryGetProperty("isScreenSharing", prop) Then
+                                                                      user.IsScreenSharing = prop.GetBoolean()
+                                                                  End If
+
+                                                                  usersList.Add(user)
+                                                                  Debug.Print($"   - Aggiunto: {user.UserName}")
+
+                                                              Catch ex As Exception
+                                                                  Debug.Print($"   ❌ Errore su un elemento: {ex.Message}")
+                                                              End Try
+                                                          Next
+                                                      Else
+                                                          Debug.Print($"❌ JsonElement non è un array: {jsonElement.ValueKind}")
+                                                      End If
+
                                                       _participants.Clear()
 
                                                       If usersList IsNot Nothing Then
                                                           For Each user In usersList
                                                               Dim participant As New Participant With {
-                                                .ConnectionId = user.ConnectionId,
-                                                .UserName = If(user.UserName IsNot Nothing, user.UserName, "Utente"),
-                                                .HasVideo = False,
-                                                .HasAudio = False
-                                            }
+                                                                                                        .ConnectionId = user.ConnectionId,
+                                                                                                        .UserName = If(user.UserName IsNot Nothing, user.UserName, "Utente"),
+                                                                                                        .HasVideo = user.HasAudio,
+                                                                                                        .HasAudio = user.HasAudio,
+                                                                                                        .IsScreenSharing = user.IsScreenSharing
+                                                                                                    }
                                                               _participants.Add(participant)
+
+                                                              ' IMPORTANTE: Se non ho remote e questo non sono io, impostalo
+                                                              'If String.IsNullOrEmpty(_remoteConnectionId) AndAlso user.ConnectionId <> _localConnectionId Then
+                                                              _remoteConnectionId = user.ConnectionId
+                                                              'Debug.Print($"✅ Impostato _remoteConnectionId da ExistingUsers: {user.ConnectionId}")
+                                                              'End If
                                                           Next
                                                       End If
 
@@ -739,10 +814,10 @@ Class MainWindow
                             Sub(userName, message, timestamp)
                                 Dispatcher.Invoke(Sub()
                                                       Dim chatMsg As New ChatMessage With {
-                                        .Sender = userName,
-                                        .Message = message,
-                                        .Timestamp = timestamp
-                                    }
+                                                                                                .Sender = userName,
+                                                                                                .Message = message,
+                                                                                                .Timestamp = Format(timestamp, "dd/MM/yyyy HH:mm:ss")
+                                                                                            }
                                                       _chatMessages.Add(chatMsg)
 
                                                       ' Scroll in fondo
@@ -847,6 +922,24 @@ Class MainWindow
                             Dispatcher.Invoke(Sub()
                                                   Debug.Print($"ScreenShareStopped ricevuto da {senderConnectionId}")
 
+                                                  If senderConnectionId = _localConnectionId Then
+                                                      ' IO ho fermato - la mia finestra era già minimizzata, la ripristino?
+                                                      ' Opzionale: RestoreWindow() se vuoi
+
+                                                      ' Io ho fermato - nascondo il mio cursore remoto
+                                                      HideRemoteCursor()
+
+                                                      Debug.Print("IO ho fermato")
+                                                  Else
+                                                      ' Qualcun altro ha fermato - ripristino le colonne
+                                                      RestoreSideColumns()
+
+                                                      ' Nascondi il cursore
+                                                      HideRemoteCursor()
+
+                                                      Debug.Print("Altri hanno fermato - ripristino colonne")
+                                                  End If
+
                                                   ' Svuota l'immagine dello screenshare
                                                   screenShareImage.Source = Nothing
                                                   txtScreenSharePlaceholder.Visibility = Visibility.Visible
@@ -859,11 +952,142 @@ Class MainWindow
                                               End Sub)
                         End Sub)
 
+            ' Handler per quando qualcuno inizia a condividere lo schermo
+            _connection.On(Of String)("ScreenShareStarted",
+                        Sub(sharerConnectionId)
+                            Dispatcher.Invoke(Sub()
+                                                  Debug.Print($"ScreenShareStarted da {sharerConnectionId}")
+
+                                                  ' IMPORTANTE: Salva chi sta condividendo
+                                                  _remoteConnectionId = sharerConnectionId
+
+                                                  If sharerConnectionId = _localConnectionId Then
+                                                      ' IO sono il condividitore - minimizzo la mia finestra
+                                                      MinimizeWindow()
+                                                      Debug.Print("IO condivido - minimizzo finestra")
+                                                  Else
+                                                      ' Qualcun altro condivide - collasso le colonne laterali
+                                                      CollapseSideColumns(True)
+
+                                                      _connection.InvokeAsync("RequestScreenDimensions", txtRoomId.Text, sharerConnectionId)
+
+                                                      ' Nascondi il cursore remoto
+                                                      HideRemoteCursor()
+
+                                                      Debug.Print("Altri condividono - collasso colonne")
+                                                  End If
+
+                                              End Sub)
+                        End Sub)
+
+            ' Aggiungi handler per ricevere dimensioni schermo
+            _connection.On(Of Integer, Integer)("ScreenDimensions",
+                        Sub(width, height)
+                            Dispatcher.Invoke(Sub()
+                                                  Debug.Print($"Ricevute dimensioni schermo: {width}x{height}")
+                                                  ' Salva le dimensioni per usarle nel calcolo del cursore
+                                                  _remoteScreenWidth = width
+                                                  _remoteScreenHeight = height
+                                              End Sub)
+                        End Sub)
+
+            '' Handler per quando qualcuno ferma lo schermo
+            '_connection.On(Of String)("ScreenShareStopped",
+            '            Sub(sharerConnectionId)
+            '                Dispatcher.Invoke(Sub()
+            '                                      Debug.Print($"ScreenShareStopped da {sharerConnectionId}")
+
+            '                                      ' Se NON sono io a fermare, ripristina le colonne
+            '                                      If sharerConnectionId <> _localConnectionId Then
+            '                                          RestoreSideColumns()
+            '                                      End If
+
+            '                                      ' Pulisci l'immagine dello screenshare
+            '                                      screenShareImage.Source = Nothing
+            '                                      txtScreenSharePlaceholder.Visibility = Visibility.Visible
+            '                                  End Sub)
+            '            End Sub)
+
+            ' Handler per quando non puoi condividere perché qualcun altro già condivide
+            _connection.On(Of String)("ScreenShareBlocked",
+                        Sub(message)
+                            Dispatcher.Invoke(Sub()
+                                                  MessageBox.Show(message, "Condivisione bloccata", MessageBoxButton.OK, MessageBoxImage.Warning)
+                                                  btnShareScreen.IsEnabled = True
+                                              End Sub)
+                        End Sub)
+
+            ' Handler per posizione cursore
+            _connection.On(Of String, Integer, Integer)("CursorPosition",
+                        Sub(senderConnectionId, x, y)
+                            Dispatcher.Invoke(Sub()
+                                                  Debug.Print("=== DEBUG COORDINATE RICEVUTE ===")
+                                                  Debug.Print($"Coordinate originali dal server: ({x}, {y})")
+                                                  Debug.Print($"screenShareImage ActualWidth: {screenShareImage.ActualWidth}")
+                                                  Debug.Print($"screenShareImage ActualHeight: {screenShareImage.ActualHeight}")
+                                                  Debug.Print($"screenShareImage Source: {screenShareImage.Source IsNot Nothing}")
+                                                  Debug.Print($"_remoteScreenWidth: {_remoteScreenWidth}")
+                                                  Debug.Print($"_remoteScreenHeight: {_remoteScreenHeight}")
+
+                                                  ' Aggiorna la posizione del cursore solo se lo screen share è attivo
+                                                  ' e proviene dalla persona che sta condividendo
+                                                  'If _isSharingScreen AndAlso senderConnectionId = _remoteConnectionId Then
+                                                  '    UpdateRemoteCursorPosition(x, y)
+                                                  '    Debug.Print($"Remote cursor: ({x}, {y})")
+                                                  'End If
+                                                  If Not _isSharingScreen AndAlso senderConnectionId = _remoteConnectionId Then
+                                                      UpdateRemoteCursorPosition(x, y)
+                                                      Debug.Print($"✅ CURSOR: Aggiornato a ({x}, {y})")
+                                                  Else
+                                                      Debug.Print($"⏭️ CURSOR: Ignorato - isSharingScreen={_isSharingScreen}, sender={senderConnectionId}, remote={_remoteConnectionId}")
+                                                  End If
+                                              End Sub)
+                        End Sub)
+
+            _connection.On(Of String)("SendScreenDimensions",
+                        Sub(requestorConnectionId)
+                            Dispatcher.Invoke(Sub()
+                                                  Debug.Print("Richiesto invio dimensioni schermo")
+                                                  If _screenShareManager IsNot Nothing Then
+                                                      _screenShareManager.SendMyScreenDimensions()
+                                                  End If
+                                              End Sub)
+                        End Sub)
+
+            ' Handler per quando qualcuno ferma il video
+            _connection.On(Of String)("VideoStopped",
+                        Sub(senderConnectionId)
+                            Dispatcher.Invoke(Sub()
+                                                  Debug.Print($"📥 Ricevuto VideoStopped da {senderConnectionId}")
+
+                                                  ' Se è il video remoto principale che viene fermato
+                                                  'If senderConnectionId = _remoteConnectionId Then
+                                                  remoteVideoImage.Source = Nothing
+                                                  txtRemoteVideoPlaceholder.Visibility = Visibility.Visible
+                                                  Debug.Print("🧹 Pulito video remoto principale")
+                                                  'End If
+
+                                                  ' Aggiorna anche nella lista partecipanti
+                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                                  If participant IsNot Nothing Then
+                                                      participant.HasVideo = False
+                                                      participant.VideoSource = Nothing
+                                                      Debug.Print($"👤 Aggiornato stato video per {participant.UserName}")
+                                                  End If
+
+                                                  ' Se stai usando icRemoteWebcams, aggiorna anche quello
+                                                  ' Forza aggiornamento ItemsControl
+                                                  'icRemoteWebcams.Items.Refresh()
+                                              End Sub)
+                        End Sub)
+
+
             ' Connessione al server
             Await _connection.StartAsync()
 
             IsConnected = True
             _localConnectionId = _connection.ConnectionId
+            Debug.Print($"_localConnectionId: {_localConnectionId}")
             txtStatus.Text = "Connesso - ID: " & _localConnectionId
 
             ' Unisciti alla stanza
@@ -911,25 +1135,25 @@ Class MainWindow
         End If
     End Sub
 
-    Private Sub cmbScreenStretch_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
-        If screenShareImage Is Nothing Then Return
+    'Private Sub cmbScreenStretch_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
+    '    If screenShareImage Is Nothing Then Return
 
-        Select Case cmbScreenStretch.SelectedIndex
-            Case 0
-                screenShareImage.Stretch = Stretch.Uniform
-            Case 1
-                screenShareImage.Stretch = Stretch.Fill
-            Case 2
-                screenShareImage.Stretch = Stretch.None
-            Case 3
-                screenShareImage.Stretch = Stretch.UniformToFill
-        End Select
-    End Sub
+    '    Select Case cmbScreenStretch.SelectedIndex
+    '        Case 0
+    '            screenShareImage.Stretch = Stretch.Uniform
+    '        Case 1
+    '            screenShareImage.Stretch = Stretch.Fill
+    '        Case 2
+    '            screenShareImage.Stretch = Stretch.None
+    '        Case 3
+    '            screenShareImage.Stretch = Stretch.UniformToFill
+    '    End Select
+    'End Sub
 
     Private Sub OnFrameSendTimerElapsed(sender As Object, e As Timers.ElapsedEventArgs)
         ' Questo timer assicura che inviamo frame periodicamente
         ' anche se non ci sono nuovi frame dalla webcam
-        If _isSendingVideo AndAlso _videoManager IsNot Nothing Then
+        If _isVideoStarted AndAlso _videoManager IsNot Nothing Then
             ' Forza l'invio di un frame (se disponibile)
             ' Il VideoManager emetterà l'evento OnFrameReadyToSend se ha un frame
         End If
@@ -937,6 +1161,17 @@ Class MainWindow
 
     Private Async Sub btnDisconnect_Click(sender As Object, e As RoutedEventArgs)
         If _connection IsNot Nothing Then
+
+            ' Ferma video se attivo
+            If _videoManager IsNot Nothing Then
+                _videoManager.StopVideoCapture()
+            End If
+
+            ' Ferma screen share se attivo
+            If _screenShareManager IsNot Nothing Then
+                _screenShareManager.StopScreenShare()
+            End If
+
             Try
                 Await _connection.StopAsync()
                 Await _connection.DisposeAsync()
@@ -955,6 +1190,8 @@ Class MainWindow
         txtStatus.Text = "Disconnesso"
         _localConnectionId = ""
         _remoteConnectionId = ""
+        localVideoImage.Source = Nothing
+        remoteVideoImage.Source = Nothing
 
         'MessageBox.Show("Disconnesso dal server.", "Disconnessione",
         '              MessageBoxButton.OK, MessageBoxImage.Information)
@@ -1002,7 +1239,11 @@ Class MainWindow
                 '                          End Sub)
                 '    End Sub)
                 ' Avvia l'invio video
-                _isSendingVideo = True
+                _isVideoStarted = True
+                txtStatus.Text = "Video attivo"
+                txtVideoStatus.Text = "Video: Attivo"
+                txtVideoStatus.Foreground = System.Windows.Media.Brushes.Green
+
                 _frameSendTimer.Start()
 
                 Await UpdateVideoStatus(True)
@@ -1029,30 +1270,26 @@ Class MainWindow
     End Sub
 
     Private Async Sub btnStopVideo_Click(sender As Object, e As RoutedEventArgs)
-        'Try
-        '    If _videoManager IsNot Nothing Then
-        '        _videoManager.StopVideoCapture()
-        '        MessageBox.Show("Webcam disattivata", "Info",
-        '                      MessageBoxButton.OK, MessageBoxImage.Information)
-        '    Else
-        '        MessageBox.Show("Video Manager non inizializzato", "Errore",
-        '                      MessageBoxButton.OK, MessageBoxImage.Error)
-        '    End If
-        'Catch ex As Exception
-        '    MessageBox.Show($"Errore nella fermata del video: {ex.Message}",
-        '                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
-        'Finally
-        '    UpdateUI()
-        'End Try
         Try
             If _videoManager IsNot Nothing Then
                 _videoManager.StopVideoCapture()
 
                 ' Ferma l'invio video
-                _isSendingVideo = False
+                _isVideoStarted = False
                 _frameSendTimer.Stop()
 
+                ' sbianco l'immagine locale (nel caso rimanga l'ultimo frame)
+                localVideoImage.Source = Nothing
+
+                ' NOTIFICA IL SERVER CHE IL VIDEO È STATO FERMATO
+                If IsConnected AndAlso _connection IsNot Nothing Then
+                    Await _connection.InvokeAsync("StopVideo", txtRoomId.Text)
+                    Debug.Print("📤 Notifica StopVideo inviata al server")
+                End If
+
                 Await UpdateVideoStatus(False)
+
+                UpdateUI()
 
                 'MessageBox.Show("Webcam disattivata", "Info",
                 '              MessageBoxButton.OK, MessageBoxImage.Information)
@@ -1158,25 +1395,52 @@ Class MainWindow
         End Try
     End Sub
 
-    Private Sub btnMuteMic_Click(sender As Object, e As RoutedEventArgs)
-        _isMicMuted = Not _isMicMuted
+    'Private Sub btnMuteMic_Click(sender As Object, e As RoutedEventArgs)
+    '    _isMicMuted = Not _isMicMuted
 
-        If _isMicMuted Then
-            btnMuteMic.Content = "🎤 Microfono MUTO"
-            btnMuteMic.Background = System.Windows.Media.Brushes.Red
-            ' Ferma cattura audio
-            If _videoManager IsNot Nothing Then
-                _videoManager.StopAudioCapture()
+    '    If _isMicMuted Then
+    '        btnMuteMic.Content = "🎤 Microfono MUTO"
+    '        btnMuteMic.Background = System.Windows.Media.Brushes.Red
+    '        ' Ferma cattura audio
+    '        If _videoManager IsNot Nothing Then
+    '            _videoManager.StopAudioCapture()
+    '        End If
+    '    Else
+    '        btnMuteMic.Content = "🎤 Microfono ATTIVO"
+    '        btnMuteMic.Background = System.Windows.Media.Brushes.LightGreen
+    '        ' Riavvia cattura audio
+    '        If _videoManager IsNot Nothing Then
+    '            _videoManager.StartAudioCapture()
+    '        End If
+    '    End If
+    'End Sub
+
+    Private Sub btnToggleChat_Click(sender As Object, e As RoutedEventArgs)
+        Try
+            _isChatCollapsed = Not _isChatCollapsed
+
+            If _isChatCollapsed Then
+                ' Collassa la chat
+                MainContentGrid.ColumnDefinitions(2).Width = New GridLength(0)
+                btnToggleChat.Content = "💬 Mostra Chat"
+                btnToggleChat.Background = System.Windows.Media.Brushes.LightGreen
+                Debug.Print("Chat collassata")
+            Else
+                ' Ripristina la chat
+                MainContentGrid.ColumnDefinitions(2).Width = New GridLength(3, GridUnitType.Star)
+                btnToggleChat.Content = "💬 Chat"
+                btnToggleChat.Background = System.Windows.Media.Brushes.LightGray
+                Debug.Print("Chat ripristinata")
             End If
-        Else
-            btnMuteMic.Content = "🎤 Microfono ATTIVO"
-            btnMuteMic.Background = System.Windows.Media.Brushes.LightGreen
-            ' Riavvia cattura audio
-            If _videoManager IsNot Nothing Then
-                _videoManager.StartAudioCapture()
-            End If
-        End If
+
+            ' Forza aggiornamento layout
+            MainContentGrid.UpdateLayout()
+
+        Catch ex As Exception
+            Debug.Print($"Errore in btnToggleChat_Click: {ex.Message}")
+        End Try
     End Sub
+
 
     Private Async Sub btnShareScreen_Click(sender As Object, e As RoutedEventArgs)
         If _screenShareManager Is Nothing Then
@@ -1195,32 +1459,51 @@ Class MainWindow
             btnShareScreen.IsEnabled = False
             txtStatus.Text = "Avvio condivisione schermo..."
 
-            ' Chiedi conferma
-            Dim result = MessageBox.Show(
-            "Stai per condividere l'intero schermo con gli altri utenti." & vbCrLf &
-            "Tutte le finestre e notifiche saranno visibili." & vbCrLf &
-            "Procedere?",
-            "Condivisione Schermo",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning)
+            ' Chiedi al server se può iniziare la condivisione
+            Dim canShare = Await _connection.InvokeAsync(Of Boolean)("StartScreenShare", txtRoomId.Text)
 
-            If result = MessageBoxResult.Yes Then
+            If canShare Then
+
+                '' Chiedi conferma
+                'Dim result = MessageBox.Show(
+                '                            "Stai per condividere l'intero schermo con gli altri utenti." & vbCrLf &
+                '                            "Tutte le finestre e notifiche saranno visibili." & vbCrLf &
+                '                            "Procedere?",
+                '                            "Condivisione Schermo",
+                '                            MessageBoxButton.YesNo,
+                '                            MessageBoxImage.Warning)
+
+                'If result = MessageBoxResult.Yes Then
                 Dim success = _screenShareManager.StartScreenShare()
 
                 If success Then
 
                     _isSharingScreen = True
+
+                    ' minimizzo per me
+                    MinimizeWindow()
+
+
                     Await UpdateScreenSharingStatus(True)
+
+                    ' Aggiorna UI
+                    UpdateUI()
+                    txtStatus.Text = "Condivisione schermo attiva"
+                    Debug.Print("Screen share avviato con successo")
+
 
                     'MessageBox.Show("Condivisione schermo avviata!", "Successo", MessageBoxButton.OK, MessageBoxImage.Information)
                 Else
                     MessageBox.Show("Condivisione schermo non avviata!", "Attenzione", MessageBoxButton.OK, MessageBoxImage.Exclamation)
                 End If
+                'End If
+
             End If
 
         Catch ex As Exception
             MessageBox.Show($"Errore avvio condivisione: {ex.Message}",
                       "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+            btnShareScreen.IsEnabled = True
         Finally
             UpdateUI()
         End Try
@@ -1238,6 +1521,9 @@ Class MainWindow
                     Await _connection.InvokeAsync("StopScreenShare", txtRoomId.Text)
                 End If
 
+                ' Ripristina le colonne laterali
+                RestoreSideColumns()
+
                 ' Pulisci anche localmente (nel caso)
                 screenShareImage.Source = Nothing
                 txtScreenSharePlaceholder.Visibility = Visibility.Visible
@@ -1247,6 +1533,7 @@ Class MainWindow
                 txtStatus.Text = "Condivisione fermata"
                 UpdateUI()
 
+                Debug.Print("Screen share fermato")
                 'MessageBox.Show("Condivisione schermo fermata", "Info",        MessageBoxButton.OK, MessageBoxImage.Information)
             End If
         Catch ex As Exception
@@ -1355,7 +1642,10 @@ Class MainWindow
 
                                        ' Aggiorna i binding delle proprietà
                                        OnPropertyChanged(NameOf(LocalVideoSource))
+                                       OnPropertyChanged(NameOf(localVideoImage))
+                                       OnPropertyChanged(NameOf(remoteVideoImage))
                                        OnPropertyChanged(NameOf(RemoteVideoSource))
+                                       OnPropertyChanged(NameOf(screenShareImage))
 
                                    Catch ex As Exception
                                        Debug.Print($"Error in UpdateUI: {ex.Message}")
@@ -1401,7 +1691,7 @@ Class MainWindow
         'MyBase.OnClosing(e)
         Try
             ' Ferma l'invio video
-            _isSendingVideo = False
+            _isVideoStarted = False
 
             If _frameSendTimer IsNot Nothing Then
                 _frameSendTimer.Stop()
@@ -1433,7 +1723,10 @@ Class MainWindow
     Private Async Function UpdateVideoStatus(hasVideo As Boolean) As Task
         Try
             If IsConnected Then
-                Await _connection.InvokeAsync("UpdateParticipantStatus", txtRoomId.Text, hasVideo, _isAudioStarted)
+                ' Ottieni roomId in modo thread-safe
+                Dim currentRoomId As String = ""
+                Dispatcher.Invoke(Sub() currentRoomId = txtRoomId.Text)
+                Await _connection.InvokeAsync("UpdateParticipantStatus", currentRoomId, hasVideo, _isAudioStarted)
             End If
         Catch ex As Exception
             Debug.Print($"Errore aggiornamento stato video: {ex.Message}")
@@ -1444,7 +1737,11 @@ Class MainWindow
     Private Async Function UpdateAudioStatus(hasAudio As Boolean) As Task
         Try
             If IsConnected Then
-                Await _connection.InvokeAsync("UpdateParticipantStatus", txtRoomId.Text, _isVideoStarted, hasAudio)
+                Dim currentRoomId As String = ""
+                Dispatcher.Invoke(Sub()
+                                      currentRoomId = txtRoomId.Text
+                                  End Sub)
+                Await _connection.InvokeAsync("UpdateParticipantStatus", currentRoomId, _isVideoStarted, hasAudio)
             End If
         Catch ex As Exception
             Debug.Print($"Errore aggiornamento stato audio: {ex.Message}")
@@ -1507,6 +1804,584 @@ Class MainWindow
                               End If
                           End Sub)
     End Sub
+
+    Private Sub CollapseSideColumns(collapse As Boolean)
+        ' Ottieni il Grid principale che contiene le colonne
+        Dim mainGrid = TryCast(FindName("MainContentGrid"), Grid)
+
+        If mainGrid IsNot Nothing AndAlso mainGrid.ColumnDefinitions.Count >= 3 Then
+            If collapse Then
+                ' Collassa colonne sinistra e destra
+                mainGrid.ColumnDefinitions(0).Width = New GridLength(0)
+                mainGrid.ColumnDefinitions(2).Width = New GridLength(0)
+                ' La colonna centrale prende tutto
+                mainGrid.ColumnDefinitions(1).Width = New GridLength(1, GridUnitType.Star)
+                Debug.Print("Colonne laterali collassate")
+            Else
+                ' Ripristina le dimensioni originali
+                mainGrid.ColumnDefinitions(0).Width = New GridLength(250)
+                mainGrid.ColumnDefinitions(1).Width = New GridLength(5, GridUnitType.Star)
+                mainGrid.ColumnDefinitions(2).Width = New GridLength(3, GridUnitType.Star)
+                Debug.Print("Colonne laterali ripristinate")
+            End If
+        End If
+    End Sub
+
+    Private Sub RestoreSideColumns()
+        CollapseSideColumns(False)
+    End Sub
+
+    Private Sub MinimizeWindow()
+        ' Minimizza la finestra
+        Me.WindowState = WindowState.Minimized
+        Debug.Print("Finestra minimizzata")
+    End Sub
+
+    Private Sub HighlightScreenShare(enabled As Boolean)
+        Dim border = TryCast(screenShareImage.Parent, Border)
+        If border IsNot Nothing Then
+            If enabled Then
+                border.BorderBrush = System.Windows.Media.Brushes.Red
+                border.BorderThickness = New Thickness(3)
+            Else
+                border.BorderBrush = System.Windows.Media.Brushes.Gray
+                border.BorderThickness = New Thickness(1)
+            End If
+        End If
+    End Sub
+
+    'Private Sub InitializeRemoteCursor()
+    '    ' Crea un elemento visivo per il cursore remoto
+    '    _remoteCursorElement = New System.Windows.Shapes.Ellipse With {
+    '        .Width = 20,
+    '        .Height = 20,
+    '        .Fill = New SolidColorBrush(Colors.Red) With {.Opacity = 0.7},
+    '        .Stroke = New SolidColorBrush(Colors.White),
+    '        .StrokeThickness = 2,
+    '        .Visibility = Visibility.Collapsed
+    '    }
+
+    '    ' Aggiungi al canvas
+    '    cursorCanvas.Children.Add(_remoteCursorElement)
+
+    '    ' Posiziona inizialmente
+    '    Canvas.SetLeft(_remoteCursorElement, 0)
+    '    Canvas.SetTop(_remoteCursorElement, 0)
+
+    '    Debug.Print("Remote cursor initialized")
+    'End Sub
+
+    'Private Sub InitializeRemoteCursor()
+    '    ' Crea un cursore a forma di freccia
+    '    Dim cursorPath As New System.Windows.Shapes.Path()
+
+    '    ' Definisci la geometria di una freccia
+    '    Dim geometry As New StreamGeometry()
+    '    Using context = geometry.Open()
+    '        context.BeginFigure(New Point(0, 0), True, True)
+    '        context.LineTo(New Point(10, 16), True, False)
+    '        context.LineTo(New Point(6, 16), True, False)
+    '        context.LineTo(New Point(6, 24), True, False)
+    '        context.LineTo(New Point(14, 24), True, False)
+    '        context.LineTo(New Point(14, 16), True, False)
+    '        context.LineTo(New Point(20, 16), True, False)
+    '        context.LineTo(New Point(10, 0), True, False)
+    '    End Using
+
+    '    cursorPath.Data = geometry
+    '    cursorPath.Fill = New SolidColorBrush(Colors.Red) With {.Opacity = 0.8}
+    '    cursorPath.Stroke = New SolidColorBrush(Colors.White)
+    '    cursorPath.StrokeThickness = 1
+
+    '    cursorCanvas.Children.Add(cursorPath)
+    '    _remoteCursorElement = cursorPath ' Salva come Object
+    'End Sub
+    Private Sub InitializeRemoteCursor()
+        ' Pulisci canvas
+        cursorCanvas.Children.Clear()
+
+        ' Crea un'immagine per il cursore
+        Dim cursorImage As New System.Windows.Controls.Image()
+
+        ' Carica l'immagine dalle risorse
+        Dim bitmapImage As New BitmapImage()
+        bitmapImage.BeginInit()
+        bitmapImage.UriSource = New Uri("pack://application:,,,/cursor.png")
+        bitmapImage.EndInit()
+
+        cursorImage.Source = bitmapImage
+        cursorImage.Width = 32
+        cursorImage.Height = 32
+        cursorImage.Stretch = Stretch.Uniform
+        cursorImage.Tag = "RemoteCursor"
+
+        ' nascosto all'avvio
+        cursorImage.Visibility = Visibility.Collapsed
+
+        cursorCanvas.Children.Add(cursorImage)
+        _remoteCursorElement = cursorImage
+
+        Debug.Print($"🎯 Cursore da immagine inizializzato")
+    End Sub
+
+    'Private Sub InitializeRemoteCursorSimple()
+    '    ' Combina una freccia bianca con bordo nero
+    '    Dim cursorPath As New System.Windows.Shapes.Path()
+
+    '    ' Geometria semplice ma efficace
+    '    Dim geometry As New StreamGeometry()
+    '    Using context = geometry.Open()
+    '        context.BeginFigure(New Point(0, 0), True, True)
+    '        context.LineTo(New Point(18, 22), True, False)
+    '        context.LineTo(New Point(14, 22), True, False)
+    '        context.LineTo(New Point(14, 28), True, False)
+    '        context.LineTo(New Point(22, 28), True, False)
+    '        context.LineTo(New Point(22, 22), True, False)
+    '        context.LineTo(New Point(18, 22), True, False)
+    '    End Using
+
+    '    cursorPath.Data = geometry
+    '    cursorPath.Fill = New SolidColorBrush(Colors.White)
+    '    cursorPath.Stroke = New SolidColorBrush(Colors.Black)
+    '    cursorPath.StrokeThickness = 1.5
+
+    '    cursorCanvas.Children.Add(cursorPath)
+    '    _remoteCursorElement = cursorPath
+
+    '    Debug.Print($"🎯 Cursore semplice inizializzato")
+    'End Sub
+
+    'Private Sub InitializeRemoteCursorRealistic()
+    '    ' Pulisci canvas
+    '    cursorCanvas.Children.Clear()
+
+    '    ' === Crea la FRECCIA principale (stile Windows preciso) ===
+    '    Dim cursorPath As New System.Windows.Shapes.Path()
+
+    '    ' Geometria della freccia standard di Windows
+    '    Dim geometry As New StreamGeometry()
+    '    Using context = geometry.Open()
+    '        ' Punta della freccia
+    '        context.BeginFigure(New Point(0, 0), True, True)
+
+    '        ' Lato destro inclinato
+    '        context.LineTo(New Point(19, 25), True, False)
+
+    '        ' Base destra
+    '        context.LineTo(New Point(15, 25), True, False)
+    '        context.LineTo(New Point(15, 31), True, False)
+    '        context.LineTo(New Point(23, 31), True, False)
+    '        context.LineTo(New Point(23, 25), True, False)
+
+    '        ' Base sinistra (ritorno)
+    '        context.LineTo(New Point(19, 25), True, False)
+    '    End Using
+
+    '    geometry.Freeze()
+    '    cursorPath.Data = geometry
+
+    '    ' Riempimento con gradiente metallico
+    '    Dim gradientStopCollection As New GradientStopCollection()
+    '    gradientStopCollection.Add(New GradientStop(Color.FromRgb(255, 255, 255), 0.0))
+    '    gradientStopCollection.Add(New GradientStop(Color.FromRgb(240, 240, 240), 0.3))
+    '    gradientStopCollection.Add(New GradientStop(Color.FromRgb(220, 220, 220), 0.7))
+    '    gradientStopCollection.Add(New GradientStop(Color.FromRgb(200, 200, 200), 1.0))
+
+    '    Dim gradientBrush As New LinearGradientBrush(gradientStopCollection, New Point(0, 0), New Point(0, 1))
+
+    '    cursorPath.Fill = gradientBrush
+    '    cursorPath.Stroke = New SolidColorBrush(Colors.Black)
+    '    cursorPath.StrokeThickness = 1
+    '    cursorPath.Tag = "RemoteCursor"
+
+    '    ' === UNICO EFFETTO OMBRA (integrato nella freccia) ===
+    '    Dim shadowEffect As New System.Windows.Media.Effects.DropShadowEffect()
+    '    shadowEffect.Color = Colors.Black
+    '    shadowEffect.Direction = 315
+    '    shadowEffect.ShadowDepth = 3
+    '    shadowEffect.Opacity = 0.4
+    '    shadowEffect.BlurRadius = 3
+
+    '    cursorPath.Effect = shadowEffect
+
+    '    ' === Punto di precisione (opzionale, piccolo) ===
+    '    Dim dot As New System.Windows.Shapes.Ellipse With {
+    '    .Width = 3,
+    '    .Height = 3,
+    '    .Fill = New SolidColorBrush(Colors.Red),
+    '    .Stroke = Nothing,  ' Senza bordo per non creare linee extra
+    '    .Tag = "CursorDot"
+    '}
+
+    '    ' Aggiungi al Canvas
+    '    cursorCanvas.Children.Add(cursorPath)
+    '    cursorCanvas.Children.Add(dot)
+
+    '    ' Salva riferimenti
+    '    _remoteCursorElement = cursorPath
+    '    _cursorDot = dot
+    '    _cursorShadow = Nothing  ' Non usiamo più l'ombra separata
+
+    '    Debug.Print($"🎯 Cursore realistico con ombra singola inizializzato")
+    'End Sub
+
+    'Private Sub InitializeRemoteCursorSmooth()
+    '    Dim cursorPath As New System.Windows.Shapes.Path()
+
+    '    ' Usa una geometria più fluida con curve di Bezier
+    '    Dim geometry As New StreamGeometry()
+    '    Using context = geometry.Open()
+    '        ' Inizia dalla punta
+    '        context.BeginFigure(New Point(0, 0), True, True)
+
+    '        ' Curva destra (invece di linea retta)
+    '        context.BezierTo(
+    '        New Point(10, 10),
+    '        New Point(15, 18),
+    '        New Point(18, 23),
+    '        True, False)
+
+    '        ' Base destra
+    '        context.LineTo(New Point(14, 23), True, False)
+    '        context.LineTo(New Point(14, 28), True, False)
+    '        context.LineTo(New Point(22, 28), True, False)
+    '        context.LineTo(New Point(22, 23), True, False)
+
+    '        ' Curva sinistra (torna alla punta)
+    '        context.BezierTo(
+    '        New Point(15, 18),
+    '        New Point(10, 10),
+    '        New Point(0, 0),
+    '        True, False)
+    '    End Using
+
+    '    geometry.Freeze()
+    '    cursorPath.Data = geometry
+
+    '    ' Imposta proprietà per un aspetto più professionale
+    '    cursorPath.Fill = New SolidColorBrush(Color.FromArgb(220, 255, 255, 255))
+    '    cursorPath.Stroke = New SolidColorBrush(Colors.Black)
+    '    cursorPath.StrokeThickness = 1
+    '    cursorPath.SnapsToDevicePixels = True
+    '    cursorPath.SetValue(RenderOptions.EdgeModeProperty, EdgeMode.Aliased)
+
+    '    ' Aggiungi un piccolo punto al centro per maggiore precisione
+    '    Dim dot As New System.Windows.Shapes.Ellipse With {
+    '    .Width = 3,
+    '    .Height = 3,
+    '    .Fill = New SolidColorBrush(Colors.Red),
+    '    .Stroke = New SolidColorBrush(Colors.White),
+    '    .StrokeThickness = 1,
+    '    .Tag = "CursorDot"
+    '}
+
+    '    cursorCanvas.Children.Add(cursorPath)
+    '    cursorCanvas.Children.Add(dot)
+
+    '    _remoteCursorElement = cursorPath
+    '    _cursorDot = dot
+
+    '    Debug.Print($"🎯 Cursore smooth inizializzato")
+    'End Sub
+
+    Private Sub btnTestCursor_Click(sender As Object, e As RoutedEventArgs)
+        ' Forza il cursore al centro dell'immagine
+        Dim centerX = screenShareImage.ActualWidth / 2
+        Dim centerY = screenShareImage.ActualHeight / 2
+
+        Canvas.SetLeft(_remoteCursorElement, centerX - 15)
+        Canvas.SetTop(_remoteCursorElement, centerY - 15)
+        _remoteCursorElement.Visibility = Visibility.Visible
+
+        Debug.Print($"🧪 Test: Cursore forzato a ({centerX}, {centerY})")
+    End Sub
+
+    'Private Sub UpdateRemoteCursorPosition(x As Integer, y As Integer)
+    '    Try
+    '        ' Ottieni le dimensioni effettive dell'immagine
+    '        If screenShareImage.Source Is Nothing Then Return
+
+    '        ' Calcola le coordinate relative all'immagine
+    '        Dim imageWidth = screenShareImage.ActualWidth
+    '        Dim imageHeight = screenShareImage.ActualHeight
+
+    '        If imageWidth = 0 OrElse imageHeight = 0 Then Return
+
+    '        ' Ottieni le dimensioni dello schermo originale
+    '        Dim screen = System.Windows.Forms.Screen.PrimaryScreen
+    '        Dim screenWidth = screen.Bounds.Width
+    '        Dim screenHeight = screen.Bounds.Height
+
+    '        ' Calcola le coordinate proporzionali
+    '        Dim relX = x / screenWidth
+    '        Dim relY = y / screenHeight
+
+    '        ' Converti in coordinate del canvas
+    '        Dim canvasX = relX * imageWidth
+    '        Dim canvasY = relY * imageHeight
+
+    '        ' Applica la posizione
+    '        Canvas.SetLeft(_remoteCursorElement, canvasX - 10) ' Centra il cursore
+    '        Canvas.SetTop(_remoteCursorElement, canvasY - 10)
+
+    '        ' Mostra il cursore
+    '        If _remoteCursorElement.Visibility = Visibility.Collapsed Then
+    '            _remoteCursorElement.Visibility = Visibility.Visible
+    '        End If
+
+    '    Catch ex As Exception
+    '        Debug.Print($"Error updating cursor position: {ex.Message}")
+    '    End Try
+    'End Sub
+
+    'Private Sub UpdateRemoteCursorPosition(x As Integer, y As Integer)
+    '    Try
+    '        ' Verifica che l'immagine dello screen share sia visibile
+    '        If screenShareImage.Source Is Nothing OrElse screenShareImage.ActualWidth = 0 Then
+    '            Debug.Print("❌ UpdateRemoteCursorPosition: Nessuna immagine visibile")
+    '            HideRemoteCursor()
+    '            Return
+    '        End If
+
+    '        If _remoteCursorElement Is Nothing Then
+    '            Debug.Print("❌ UpdateRemoteCursorPosition: _remoteCursorElement null")
+    '            Return
+    '        End If
+
+    '        ' Ottieni le dimensioni dell'immagine visualizzata
+    '        Dim imageWidth = screenShareImage.ActualWidth
+    '        Dim imageHeight = screenShareImage.ActualHeight
+
+    '        ' Ottieni le dimensioni dello schermo originale del mittente
+    '        Dim screenWidth = _remoteScreenWidth
+    '        Dim screenHeight = _remoteScreenHeight
+
+    '        ' Validazione input
+    '        If x < 0 OrElse x > screenWidth OrElse y < 0 OrElse y > screenHeight Then
+    '            Debug.Print($"⚠️ Coordinate fuori schermo: ({x}, {y}) max {screenWidth}x{screenHeight}")
+    '            ' Normalizza
+    '            x = Math.Max(0, Math.Min(x, screenWidth))
+    '            y = Math.Max(0, Math.Min(y, screenHeight))
+    '        End If
+
+    '        ' Calcola le proporzioni
+    '        Dim imageAspect = imageWidth / imageHeight
+    '        Dim screenAspect = screenWidth / screenHeight
+
+    '        Dim renderX As Double
+    '        Dim renderY As Double
+    '        Dim scale As Double
+
+    '        If imageAspect > screenAspect Then
+    '            ' Letterbox (bande sopra/sotto)
+    '            scale = imageWidth / screenWidth
+    '            renderX = 0
+    '            renderY = (imageHeight - (screenHeight * scale)) / 2
+    '            Debug.Print($"📐 Caso letterbox: scale={scale:F3}, offsetY={renderY:F2}")
+    '        Else
+    '            ' Pillarbox (bande ai lati)
+    '            scale = imageHeight / screenHeight
+    '            renderX = (imageWidth - (screenWidth * scale)) / 2
+    '            renderY = 0
+    '            Debug.Print($"📐 Caso pillarbox: scale={scale:F3}, offsetX={renderX:F2}")
+    '        End If
+
+    '        ' Calcola posizione finale
+    '        Dim cursorX = renderX + (x * scale)
+    '        Dim cursorY = renderY + (y * scale)
+
+    '        Debug.Print($"📍 Calcolato: ({cursorX:F2}, {cursorY:F2})")
+
+    '        ' Validazione coordinate finali
+    '        If cursorX < 0 OrElse cursorX > imageWidth OrElse cursorY < 0 OrElse cursorY > imageHeight Then
+    '            Debug.Print($"⚠️ Coordinate finali fuori immagine: ({cursorX:F2}, {cursorY:F2}) max {imageWidth:F2}x{imageHeight:F2}")
+    '            ' Clamping
+    '            cursorX = Math.Max(0, Math.Min(cursorX, imageWidth))
+    '            cursorY = Math.Max(0, Math.Min(cursorY, imageHeight))
+    '        End If
+
+    '        ' Posiziona il cursore (la punta della freccia è in alto a sinistra)
+    '        ' La freccia è larga 20px, alta 24px. La punta è in alto a sinistra (0,0)
+    '        Canvas.SetLeft(_remoteCursorElement, cursorX)
+    '        Canvas.SetTop(_remoteCursorElement, cursorY - 24) ' Sottrai l'altezza per avere la punta al punto di click
+
+    '        Debug.Print($"🎯 Posizionato a: Left={Canvas.GetLeft(_remoteCursorElement):F2}, Top={Canvas.GetTop(_remoteCursorElement):F2}")
+
+    '        ' Mostra cursore
+    '        If _remoteCursorElement.Visibility = Visibility.Collapsed Then
+    '            _remoteCursorElement.Visibility = Visibility.Visible
+    '            Debug.Print("👆 Cursore reso visibile")
+    '        End If
+
+    '        ' Porta in primo piano
+    '        Canvas.SetZIndex(_remoteCursorElement, 1000)
+
+    '    Catch ex As Exception
+    '        Debug.Print($"Error updating cursor position: {ex.Message}")
+    '    End Try
+    'End Sub
+
+    Private Sub UpdateRemoteCursorPosition(x As Integer, y As Integer)
+        Try
+            Debug.Print("=== UPDATE CURSOR POSITION ===")
+            Debug.Print($"🖱️ INPUT: ({x}, {y})")
+
+            ' Verifica che l'immagine sia visibile
+            If screenShareImage.Source Is Nothing OrElse screenShareImage.ActualWidth = 0 Then
+                Debug.Print("❌ USCITA: Nessuna immagine")
+                Return
+            End If
+
+            ' Ottieni dimensioni del Canvas (contenitore)
+            Dim canvasWidth = cursorCanvas.ActualWidth
+            Dim canvasHeight = cursorCanvas.ActualHeight
+
+            ' Ottieni dimensioni dello schermo originale
+            Dim screenWidth = _remoteScreenWidth
+            Dim screenHeight = _remoteScreenHeight
+
+            Debug.Print($"📏 Canvas: {canvasWidth:F2} x {canvasHeight:F2}")
+            Debug.Print($"📏 Screen originale: {screenWidth} x {screenHeight}")
+            Debug.Print($"📏 Image Actual: {screenShareImage.ActualWidth:F2} x {screenShareImage.ActualHeight:F2}")
+
+            ' Calcola le proporzioni
+            Dim canvasAspect = canvasWidth / canvasHeight
+            Dim screenAspect = screenWidth / screenHeight
+
+            Debug.Print($"📐 Canvas aspect: {canvasAspect:F4}")
+            Debug.Print($"📐 Screen aspect: {screenAspect:F4}")
+
+            Dim renderWidth As Double
+            Dim renderHeight As Double
+            Dim offsetX As Double
+            Dim offsetY As Double
+
+            If canvasAspect > screenAspect Then
+                ' Il Canvas è più largo delle proporzioni dello schermo
+                ' => l'immagine avrà bande laterali (pillarbox)
+                renderHeight = canvasHeight
+                renderWidth = screenWidth * (canvasHeight / screenHeight)
+                offsetX = (canvasWidth - renderWidth) / 2
+                offsetY = 0
+                Debug.Print($"📐 PILLARBOX: render={renderWidth:F2}x{renderHeight:F2}, offsetX={offsetX:F2}")
+            Else
+                ' Il Canvas è più alto delle proporzioni dello schermo
+                ' => l'immagine avrà bande sopra/sotto (letterbox)
+                renderWidth = canvasWidth
+                renderHeight = screenHeight * (canvasWidth / screenWidth)
+                offsetX = 0
+                offsetY = (canvasHeight - renderHeight) / 2
+                Debug.Print($"📐 LETTERBOX: render={renderWidth:F2}x{renderHeight:F2}, offsetY={offsetY:F2}")
+            End If
+
+            ' Calcola posizione del cursore nel Canvas
+            Dim relX = x / screenWidth
+            Dim relY = y / screenHeight
+
+            Dim cursorX = offsetX + (relX * renderWidth)
+            Dim cursorY = offsetY + (relY * renderHeight)
+
+            ' blocco il cursore allì'interno dello schermo condiviso
+            If cursorX < offsetX Then cursorX = offsetX
+            If cursorX > offsetX + renderWidth Then cursorX = offsetX + renderWidth
+            If cursorY < offsetY Then cursorY = offsetY
+            If cursorY > offsetY + renderHeight Then cursorY = offsetY + renderHeight
+
+            Debug.Print($"📍 Posizione Canvas: ({cursorX:F2}, {cursorY:F2})")
+
+            ' Posiziona l'immagine del cursore
+            If _remoteCursorElement IsNot Nothing Then
+                ' Centra l'hotspot (assumendo che la punta sia in alto a sinistra)
+                Canvas.SetLeft(_remoteCursorElement, cursorX - 13)
+                Canvas.SetTop(_remoteCursorElement, cursorY)
+                _remoteCursorElement.Visibility = Visibility.Visible
+            End If
+
+            Debug.Print("=== FINE UPDATE ===")
+
+        Catch ex As Exception
+            Debug.Print($"❌ ERRORE: {ex.Message}")
+        End Try
+    End Sub
+
+    Private Sub DebugImageDimensions()
+        Dispatcher.Invoke(Sub()
+                              Debug.Print("=== DEBUG DIMENSIONI IMMAGINE ===")
+                              Debug.Print($"screenShareImage ActualWidth: {screenShareImage.ActualWidth}")
+                              Debug.Print($"screenShareImage ActualHeight: {screenShareImage.ActualHeight}")
+                              Debug.Print($"screenShareImage Source: {screenShareImage.Source IsNot Nothing}")
+
+                              If screenShareImage.Source IsNot Nothing Then
+                                  Dim bitmap = TryCast(screenShareImage.Source, BitmapSource)
+                                  If bitmap IsNot Nothing Then
+                                      Debug.Print($"Bitmap PixelWidth: {bitmap.PixelWidth}")
+                                      Debug.Print($"Bitmap PixelHeight: {bitmap.PixelHeight}")
+                                      Debug.Print($"Bitmap DPI: {bitmap.DpiX}x{bitmap.DpiY}")
+                                  End If
+                              End If
+
+                              Debug.Print($"cursorCanvas ActualWidth: {cursorCanvas.ActualWidth}")
+                              Debug.Print($"cursorCanvas ActualHeight: {cursorCanvas.ActualHeight}")
+                              Debug.Print("================================")
+                          End Sub)
+    End Sub
+
+    Private Sub HideRemoteCursor()
+        If _remoteCursorElement IsNot Nothing Then
+            _remoteCursorElement.Visibility = Visibility.Collapsed
+        End If
+    End Sub
+
+    'Private Async Sub SendCursorPosition(x As Integer, y As Integer)
+    '    Try
+    '        If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
+    '            Await _connection.InvokeAsync("SendCursorPosition", txtRoomId.Text, x, y)
+    '        End If
+    '    Catch ex As Exception
+    '        Debug.Print($"Error sending cursor position: {ex.Message}")
+    '    End Try
+    'End Sub
+    Private Async Sub SendCursorPosition(x As Integer, y As Integer)
+        Try
+            ' Variabili thread-safe
+            Dim canSend As Boolean = False
+            Dim currentRoomId As String = ""
+
+            ' Accedi agli oggetti UI in modo thread-safe
+            Dispatcher.Invoke(Sub()
+                                  canSend = (IsConnected AndAlso
+                                            _connection IsNot Nothing AndAlso
+                                            _connection.State = HubConnectionState.Connected)
+                                  currentRoomId = txtRoomId.Text
+                              End Sub)
+
+            If canSend Then
+                ' La chiamata asincrona può essere fatta fuori dal Dispatcher
+                Await _connection.InvokeAsync("SendCursorPosition", currentRoomId, x, y)
+                Debug.Print($"Cursore inviato: ({x}, {y})") ' Commentato per non intasare i log
+            End If
+
+        Catch ex As Exception
+            Debug.Print($"Errore invio posizione cursore: {ex.Message}")
+        End Try
+    End Sub
+
+    Private Async Sub btnTestDirect_Click(sender As Object, e As RoutedEventArgs)
+        Try
+            Debug.Print("🧪 TEST: Invio diretto al server")
+
+            Dim testX = 100
+            Dim testY = 200
+
+            Await _connection.InvokeAsync("SendCursorPosition", txtRoomId.Text, testX, testY)
+
+            Debug.Print($"🧪 TEST: Inviato ({testX}, {testY})")
+
+        Catch ex As Exception
+            Debug.Print($"🧪 TEST Errore: {ex.Message}")
+        End Try
+    End Sub
+
 End Class
 
 ' Classe per rappresentare un partecipante
@@ -1585,13 +2460,15 @@ Public Class Participant
     Protected Sub OnPropertyChanged(<CallerMemberName> Optional memberName As String = Nothing)
         RaiseEvent PropertyChanged(Me, New PropertyChangedEventArgs(memberName))
     End Sub
+
+
 End Class
 
 ' Classe per i messaggi chat
 Public Class ChatMessage
     Public Property Sender As String
     Public Property Message As String
-    Public Property Timestamp As DateTime
+    Public Property Timestamp As String
 End Class
 
 
