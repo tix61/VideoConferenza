@@ -1,8 +1,44 @@
 [
   {
     "ContainingType": "VideoConference.Server.Program\u002B_Closure$__",
-    "Method": "_Lambda$__0-3",
+    "Method": "_Lambda$__0-4",
     "RelativePath": "",
+    "HttpMethod": "GET",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.String",
+        "MediaTypes": [
+          "text/plain"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "VideoConference.Server.Program\u002B_Closure$__0-0",
+    "Method": "_Lambda$__6",
+    "RelativePath": "routes",
+    "HttpMethod": "GET",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.String",
+        "MediaTypes": [
+          "text/plain"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "VideoConference.Server.Program\u002B_Closure$__",
+    "Method": "_Lambda$__0-5",
+    "RelativePath": "test",
     "HttpMethod": "GET",
     "IsController": false,
     "Order": 0,

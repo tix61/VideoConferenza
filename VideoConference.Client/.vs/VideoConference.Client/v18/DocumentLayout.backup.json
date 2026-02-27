@@ -7,12 +7,12 @@
       "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:mainwindow.xaml.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\videomanager.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
       "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:videomanager.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|c:\\progetti\\videoconference\\videoconference.client\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{912769F2-4D51-F137-7324-44CE1D15BFC6}|VideoConference.Client.vbproj|solutionrelative:mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\tizia\\AppData\\Local\\SourceServer\\941cbc325d17d55871e0988d283fcdaa4ee2bef19ac6ea26e5535be728d85c30\\VideoConference.Client\\VideoManager.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
@@ -39,7 +39,7 @@
               "RelativeDocumentMoniker": "MainWindow.xaml.vb",
               "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml.vb*",
               "RelativeToolTip": "MainWindow.xaml.vb*",
-              "ViewState": "AgIAACADAAAAAAAAAIAxwDIDAACVAAAAAAAAAA==",
+              "ViewState": "AgIAAFkBAAAAAAAAAAAAAIwBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
               "WhenOpened": "2026-02-10T11:38:47.169Z",
               "IsPinned": true,
@@ -47,7 +47,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "MainWindow.xaml",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\MainWindow.xaml",
               "RelativeDocumentMoniker": "MainWindow.xaml",
@@ -55,8 +55,7 @@
               "RelativeToolTip": "MainWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-02-10T13:02:11.437Z",
-              "IsPinned": true,
-              "EditorCaption": ""
+              "IsPinned": true
             },
             {
               "$type": "Bookmark",
@@ -89,18 +88,17 @@
               "RelativeToolTip": "ScreenShareManager.vb",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
-              "WhenOpened": "2026-02-19T15:34:07.996Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-19T15:34:07.996Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "VideoManager.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Client\\VideoManager.vb",
               "RelativeDocumentMoniker": "VideoManager.vb",
               "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Client\\VideoManager.vb",
               "RelativeToolTip": "VideoManager.vb",
-              "ViewState": "AgIAACMDAAAAAAAAAAAAACkDAAAUAAAAAAAAAA==",
+              "ViewState": "AgIAAGYCAAAAAAAAAAAmwHwCAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
               "WhenOpened": "2026-02-10T13:22:29.331Z",
               "EditorCaption": ""

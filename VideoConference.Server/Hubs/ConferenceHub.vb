@@ -10,6 +10,7 @@ Namespace Hubs
         Private Shared ReadOnly _rooms As New ConcurrentDictionary(Of String, String)()
         Private Shared ReadOnly _userStatus As New ConcurrentDictionary(Of String, UserStatus)()
         Private Shared ReadOnly _activeScreenSharer As New ConcurrentDictionary(Of String, String)() ' Key: roomId, Value: connectionId
+        Private Shared ReadOnly _monitoring As New MonitoringService()
 
         ' Classe per tenere traccia dello stato utente
         Private Class UserStatus
@@ -20,39 +21,67 @@ Namespace Hubs
         End Class
 
         Public Overrides Async Function OnConnectedAsync() As Task
-            Debug.Print($"Client connected: {Context.ConnectionId}")
+            Dim connectionId = Context.ConnectionId
+            _monitoring.AddLogMessage($"Client connected: {connectionId}")
             Await MyBase.OnConnectedAsync()
         End Function
 
         Public Overrides Async Function OnDisconnectedAsync(exception As Exception) As Task
             Try
+                Dim connectionId = Context.ConnectionId
+                Dim userName As String = ""
+                Dim roomId As String = Nothing
+
+                ' Ottieni il nome utente prima di rimuovere tutto
+                If _connections.TryGetValue(connectionId, userName) Then
+                    ' Ottieni la stanza prima di rimuovere
+                    _rooms.TryGetValue(connectionId, roomId)
+
+                    ' Log della disconnessione
+                    _monitoring.AddLogMessage($"Client disconnesso: {userName} (ID: {connectionId})")
+                End If
+
                 ' Rimuovi lo stato utente
                 _userStatus.TryRemove(Context.ConnectionId, Nothing)
 
                 ' Rimuovi dalla stanza
-                Dim roomId As String = Nothing
-                If _rooms.TryGetValue(Context.ConnectionId, roomId) Then
+                If Not String.IsNullOrEmpty(roomId) Then
                     ' Notifica a tutti che l'utente ha fermato il video (se era attivo)
                     If _userStatus.ContainsKey(Context.ConnectionId) AndAlso _userStatus(Context.ConnectionId).HasVideo Then
                         Await Clients.OthersInGroup(roomId).SendAsync("VideoStopped", Context.ConnectionId)
+                        _monitoring.AddLogMessage($"Video fermato: ""{userName}"" in stanza ""{roomId}""")
+                    End If
+
+                    ' Notifica a tutti che l'utente ha fermato l'audio (se era attivo)
+                    If _userStatus.ContainsKey(Context.ConnectionId) AndAlso _userStatus(Context.ConnectionId).HasAudio Then
+                        Await Clients.OthersInGroup(roomId).SendAsync("AudioStopped", Context.ConnectionId)
+                        _monitoring.AddLogMessage($"Audio fermato: ""{userName}"" in stanza ""{roomId}""")
                     End If
 
                     ' Se questo utente stava condividendo lo schermo, rimuovilo
                     Dim sharer As String = Nothing
                     If _activeScreenSharer.TryGetValue(roomId, sharer) AndAlso sharer = Context.ConnectionId Then
                         _activeScreenSharer.TryRemove(roomId, Nothing)
+                        Await Clients.Group(roomId).SendAsync("ScreenShareStopped", connectionId)
+                        _monitoring.AddLogMessage($"Screen share fermato: ""{userName}"" in stanza ""{roomId}""")
                     End If
                     Await Clients.Group(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
                 End If
 
                 ' Notifica agli altri che l'utente ha lasciato
                 Await Clients.OthersInGroup(roomId).SendAsync("UserLeft", Context.ConnectionId)
+
+                ' Rimuovi dal monitoraggio
+                _monitoring.RemoveUser(connectionId, roomId)
+
                 _rooms.TryRemove(Context.ConnectionId, Nothing)
 
                 ' AGGIORNA LA LISTA PER TUTTI
                 Await BroadcastParticipantsList(roomId)
 
                 _connections.TryRemove(Context.ConnectionId, Nothing)
+
+                _monitoring.AddLogMessage($"Utente ""{userName}"" ha lasciato la stanza ""{roomId}""")
 
                 Debug.Print($"Client disconnected: {Context.ConnectionId}")
 
@@ -62,33 +91,6 @@ Namespace Hubs
 
             Await MyBase.OnDisconnectedAsync(exception)
         End Function
-
-        'Public Async Function JoinRoom(roomId As String, userName As String) As Task
-        '    ' Salva l'utente e la stanza
-        '    _connections(Context.ConnectionId) = userName
-        '    _rooms(Context.ConnectionId) = roomId
-
-        '    Await Groups.AddToGroupAsync(Context.ConnectionId, roomId)
-
-        '    ' Notifica agli altri nella stanza
-        '    Await Clients.OthersInGroup(roomId).SendAsync("UserJoined", Context.ConnectionId, userName)
-
-        '    ' AGGIORNA LA LISTA PER TUTTI
-        '    Await BroadcastParticipantsList(roomId)
-
-        '    ' Restituisci gli utenti già presenti
-        '    Dim usersInRoom = _connections.
-        '        Where(Function(c) _rooms.ContainsKey(c.Key) AndAlso
-        '                           _rooms(c.Key) = roomId AndAlso
-        '                           c.Key <> Context.ConnectionId).
-        '        Select(Function(c) New With {
-        '            .ConnectionId = c.Key,
-        '            .UserName = c.Value
-        '        }).ToList()
-
-        '    'Await Clients.Caller.SendAsync("ExistingUsers", usersInRoom)
-        '    Await Clients.Caller.SendAsync("ExistingUsers", usersInRoom) ' Dove usersInRoom è List(Of UserInfo)
-        'End Function
 
         Public Async Function JoinRoom(roomId As String, userName As String) As Task
             ' Salva l'utente e la stanza
@@ -102,6 +104,11 @@ Namespace Hubs
                                                                     .HasAudio = False,
                                                                     .IsScreenSharing = False
                                                                     }
+
+            ' AGGIUNGI AL MONITORAGGIO
+            _monitoring.AddOrUpdateRoom(roomId, Context.ConnectionId, userName)
+            _monitoring.AddLogMessage($"Utente ""{userName}"" si è unito alla stanza ""{roomId}""")
+            _monitoring.UpdateUserStatus(Context.ConnectionId, roomId, False, False, False)
 
             Await Groups.AddToGroupAsync(Context.ConnectionId, roomId)
 
@@ -286,11 +293,26 @@ Namespace Hubs
         ''' </summary>
         Public Async Function UpdateParticipantStatus(roomId As String, hasVideo As Boolean, hasAudio As Boolean) As Task
             Try
-                ' Aggiorna lo stato nella memoria
-                Dim status = _userStatus.GetOrAdd(Context.ConnectionId, New UserStatus())
-                status.HasVideo = hasVideo
-                status.HasAudio = hasAudio
-                status.UserName = _connections.GetValueOrDefault(Context.ConnectionId, "Utente")
+
+                Dim status As UserStatus = Nothing
+                If _userStatus.TryGetValue(Context.ConnectionId, status) Then
+                    ' Aggiorna solo video e audio, ma MANTIENI isScreenSharing
+                    status.HasVideo = hasVideo
+                    status.HasAudio = hasAudio
+                    ' NON modificare status.IsScreenSharing!
+                Else
+                    ' Se non esiste, crea nuovo stato
+                    status = New UserStatus With {
+                                                .UserName = _connections.GetValueOrDefault(Context.ConnectionId, "Utente"),
+                                                .HasVideo = hasVideo,
+                                                .HasAudio = hasAudio,
+                                                .IsScreenSharing = False
+                                                }
+                    _userStatus(Context.ConnectionId) = status
+                End If
+
+                ' Aggiorna il monitoraggio
+                _monitoring.UpdateUserStatus(Context.ConnectionId, roomId, status.HasVideo, status.HasAudio, status.IsScreenSharing)
 
                 Debug.Print($"UpdateParticipantStatus: {Context.ConnectionId} - Video:{hasVideo}, Audio:{hasAudio}")
 
@@ -315,6 +337,11 @@ Namespace Hubs
             Try
                 Dim status = _userStatus.GetOrAdd(Context.ConnectionId, New UserStatus())
                 status.IsScreenSharing = isSharing
+
+                _monitoring.UpdateUserStatus(Context.ConnectionId, roomId,
+                                             status.HasVideo,
+                                             status.HasAudio,
+                                             status.IsScreenSharing)
 
                 Debug.Print($"UpdateScreenSharingStatus: {Context.ConnectionId} - Sharing:{isSharing}")
 
@@ -488,6 +515,26 @@ Namespace Hubs
 
             Catch ex As Exception
                 Debug.Print($"❌ SERVER Errore in StopVideo: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function StopAudio(roomId As String) As Task
+            Try
+                Debug.Print($"🛑 SERVER: StopAudio da {Context.ConnectionId} in stanza {roomId}")
+
+                ' Notifica a tutti gli altri che il video è terminato
+                Await Clients.OthersInGroup(roomId).SendAsync("AudioStopped", Context.ConnectionId)
+
+                ' Aggiorna stato utente
+                If _userStatus.ContainsKey(Context.ConnectionId) Then
+                    _userStatus(Context.ConnectionId).HasAudio = False
+                End If
+
+                ' Opzionale: aggiorna lista partecipanti
+                Await BroadcastParticipantsList(roomId)
+
+            Catch ex As Exception
+                Debug.Print($"❌ SERVER Errore in StopAudio: {ex.Message}")
             End Try
         End Function
 

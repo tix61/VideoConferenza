@@ -1,0 +1,4 @@
+C:\Progetti\VideoConference\VideoConference.Server\wwwroot\css\dashboard.css
+C:\Progetti\VideoConference\VideoConference.Server\wwwroot\js\dashboard.js
+wwwroot\css\dashboard.css
+wwwroot\js\dashboard.js

@@ -357,58 +357,6 @@ Class MainWindow
         End Try
     End Sub
 
-    'Private Async Sub SendAudioData(audioData As Byte())
-    '    Try
-    '        If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
-    '            Debug.Print($"*** MAIN: Invio audio a tutti, {audioData.Length} bytes")
-
-    '            ' Usa lo stesso pattern dello screen share
-    '            Await _connection.InvokeAsync("SendAudioDataToAll", txtRoomId.Text, audioData)
-
-    '            Debug.Print("*** MAIN: Audio inviato con successo")
-    '        Else
-    '            Debug.Print("*** MAIN: Connessione non attiva per invio audio")
-    '        End If
-    '    Catch ex As Exception
-    '        Debug.Print($"*** MAIN: Errore invio audio: {ex.Message}")
-    '    End Try
-    'End Sub
-
-    'Private Async Sub SendAudioData(audioData As Byte())
-    '    Try
-    '        ' Variabili per memorizzare lo stato della connessione (thread-safe)
-    '        Dim canSend As Boolean = False
-    '        Dim currentRoomId As String = ""
-
-    '        ' Accedi agli oggetti UI in modo thread-safe
-    '        Dispatcher.Invoke(Sub()
-    '                              If _connection IsNot Nothing Then
-    '                                  canSend = (_connection.State = HubConnectionState.Connected)
-    '                                  currentRoomId = txtRoomId.Text
-    '                                  Debug.Print($"UI Thread - Stato connessione: {_connection.State}, Room: {currentRoomId}")
-    '                              Else
-    '                                  Debug.Print("UI Thread - _connection è null")
-    '                              End If
-    '                          End Sub)
-
-    '        ' Ora possiamo usare currentConnection in modo sicuro
-    '        If canSend Then
-    '            Debug.Print($"*** MAIN: Invio audio a tutti, {audioData.Length} bytes, room: {currentRoomId}")
-
-    '            ' La chiamata a InvokeAsync non richiede Dispatcher
-    '            Await _connection.InvokeAsync("SendAudioDataToAll", currentRoomId, audioData)
-
-    '            Debug.Print("*** MAIN: Audio inviato con successo")
-    '        Else
-    '            Debug.Print("*** MAIN: Connessione non attiva per invio audio")
-    '        End If
-
-    '    Catch ex As Exception
-    '        Debug.Print($"*** MAIN: Errore invio audio: {ex.Message}")
-    '        Debug.Print($"StackTrace: {ex.StackTrace}")
-    '    End Try
-    'End Sub
-
     Private Async Sub SendAudioData(audioData As Byte())
         Try
             Debug.Print($"📤 SendAudioData: {audioData.Length} bytes")
@@ -1081,6 +1029,25 @@ Class MainWindow
                                               End Sub)
                         End Sub)
 
+            ' Handler per quando qualcuno ferma l'audio
+            _connection.On(Of String)("AudioStopped",
+                        Sub(senderConnectionId)
+                            Dispatcher.Invoke(Sub()
+                                                  Debug.Print($"📥 Ricevuto AudioStopped da {senderConnectionId}")
+
+                                                  ' Aggiorna anche nella lista partecipanti
+                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                                  If participant IsNot Nothing Then
+                                                      participant.HasAudio = False
+                                                      Debug.Print($"👤 Aggiornato stato audio per {participant.UserName}")
+                                                  End If
+
+                                                  ' Se stai usando icRemoteWebcams, aggiorna anche quello
+                                                  ' Forza aggiornamento ItemsControl
+                                                  'icRemoteWebcams.Items.Refresh()
+                                              End Sub)
+                        End Sub)
+
 
             ' Connessione al server
             Await _connection.StartAsync()
@@ -1351,6 +1318,14 @@ Class MainWindow
         Try
             If _videoManager IsNot Nothing Then
                 _videoManager.StopAudioCapture()
+
+                _isAudioStarted = False
+
+                ' NOTIFICA IL SERVER CHE l'audio È STATO FERMATO
+                If IsConnected AndAlso _connection IsNot Nothing Then
+                    Await _connection.InvokeAsync("StopAudio", txtRoomId.Text)
+                    Debug.Print("📤 Notifica StopAudio inviata al server")
+                End If
 
                 Await UpdateAudioStatus(False)
 
