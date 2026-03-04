@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VideoConference.Shared")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+77bafe9c9a53d8eed24301ca9c7ed85749e852a4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+72a1cfd823bc38bdefb3bf997d8461d69f75909b")]
 [assembly: System.Reflection.AssemblyProductAttribute("VideoConference.Shared")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VideoConference.Shared")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

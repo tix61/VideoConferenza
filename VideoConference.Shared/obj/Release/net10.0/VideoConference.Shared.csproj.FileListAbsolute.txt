@@ -1,0 +1,12 @@
+C:\Progetti\VideoConference\VideoConference.Shared\bin\Release\net10.0\VideoConference.Shared.deps.json
+C:\Progetti\VideoConference\VideoConference.Shared\bin\Release\net10.0\VideoConference.Shared.dll
+C:\Progetti\VideoConference\VideoConference.Shared\bin\Release\net10.0\VideoConference.Shared.pdb
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\VideoConference.Shared.GeneratedMSBuildEditorConfig.editorconfig
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\VideoConference.Shared.AssemblyInfoInputs.cache
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\VideoConference.Shared.AssemblyInfo.cs
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\VideoConference.Shared.csproj.CoreCompileInputs.cache
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\VideoConference.Shared.sourcelink.json
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\VideoConference.Shared.dll
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\refint\VideoConference.Shared.dll
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\VideoConference.Shared.pdb
+C:\Progetti\VideoConference\VideoConference.Shared\obj\Release\net10.0\ref\VideoConference.Shared.dll

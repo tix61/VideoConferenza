@@ -1,0 +1,4230 @@
+Evidenziare TextBox con FBE in VB.NET
+VideoConferenza 2
+VideoConferenza
+Sito Elena
+Filtrare DataTable per ordinamento negativo
+Correzione script batch per commit git
+Gestione read vuota in funzione VB.NET
+Dispositivi SpeedyPick pick to light
+Copiare formato righe Excel VB.Net
+Git commit
+Configurare Windows Firewall per porte 5000 e 5001
+frmSfereComponenti
+Istruzione SQL SET IDENTITY_INSERT spiegata
+VB.NET: Funzione per gestione file XML
+Output Console in VB.NET WPF: guide ed alternative
+TeamsClone4
+Verifica formula Crystal Reports corretta
+TeamsClone3
+Microsoft Project: esiste ancora e si evolve
+Problemi colore DataGridView in VB.NET
+DuckDuckGo: motore di ricerca privacy-first
+Analisi link potenzialmente fasullo Generali
+Correzione e ottimizzazione query SQL
+TeamsClone2
+TeamsClone
+Significato spunta singola su WhatsApp
+Estrazione testo SQL prima di carattere #
+Come verificare installazione Python su PC
+Guida completa all'uso di GitHub
+Implementazione maschera COD_SFERE in NewCode
+Popolare ComboBox con valori VB.NET
+📋 RIEPILOGO GENERALE
+
+Progetto di videoconferenza con server in ASP.NET Core e client WPF. Supporta video, audio, screen sharing e chat in tempo reale.
+📁 STRUTTURA DEL PROGETTO
+text
+
+VideoConference/
+├── VideoConference.Server/                     # Server ASP.NET Core
+│   ├── Program.vb
+│   ├── Hubs/
+│   │   └── ConferenceHub.vb                    # Hub SignalR principale
+│   ├── Services/
+│   │   └── MonitoringService.vb                # Tracciamento utenti/stanze
+│   ├── Controllers/
+│   │   └── DashboardController.vb               # Dashboard e API
+│   ├── Models/
+│   │   └── DashboardModels.cs                    # Modelli C# per dashboard
+│   └── Views/
+│       └── Dashboard/
+│           └── Index.cshtml                       # Dashboard HTML/JS
+│
+└── VideoConference.Client/                       # Client WPF
+    ├── MainWindow.xaml
+    ├── MainWindow.xaml.vb
+    ├── VideoManager.vb                            # Gestione video/audio
+    └── ScreenShareManager.vb                      # Gestione screen sharing
+
+🛠 TECNOLOGIE UTILIZZATE
+
+    .NET: 8.0 (sia server che client)
+
+    SignalR: Comunicazione real-time
+
+    Emgu.CV: Cattura video (webcam e screen)
+
+    NAudio: Gestione audio
+
+    WPF/XAML: Interfaccia client
+
+    ASP.NET Core MVC: Dashboard server
+
+    HTML/CSS/JavaScript: Frontend dashboard
+
+✅ FUNZIONALITÀ COMPLETATE
+Server
+
+    Hub SignalR con gestione stanze
+
+    MonitoringService per tracciamento utenti in tempo reale
+
+    Dashboard web (http://server:5000/dashboard)
+
+    API REST per statistiche (http://server:5000/api/stats)
+
+    Log console con MonitoringService
+
+    Broadcast stati utente (video/audio/screen)
+
+Client
+
+    Connessione SignalR stabile con riconnessione automatica
+
+    Video locale (Emgu.CV, 320x240 @15fps, ottimizzato CPU)
+
+    Video remoto funzionante
+
+    Screen sharing con cursore remoto (Opzione 3 - coordinate)
+
+    Audio bidirezionale con noise gate
+
+    Chat testuale funzionante
+
+    Lista partecipanti con stati (video/audio/screen)
+
+    Layout a 3 colonne:
+
+        Sinistra: Video locale (140px) + Video remoto (140px) + Partecipanti
+
+        Centro: Screen sharing (ridimensionabile)
+
+        Destra: Chat
+
+    Pulsanti unificati in alto (connessione, video, audio, screen)
+
+    Collasso chat con pulsante toggle
+
+    Gestione connessione/disconnessione utenti
+
+🐛 PROBLEMI APERTI / DA RISOLVERE
+1. Audio - Stato screen sharing resettato 🔴
+
+Problema: Quando si ferma l'audio, il metodo UpdateParticipantStatus resetta isScreenSharing = false anche se la condivisione è ancora attiva.
+File: VideoConference.Server/Hubs/ConferenceHub.vb
+Metodo: UpdateParticipantStatus
+2. Echo cancellation 🟡
+
+Attuale: Half-duplex (blocca ricezione quando si parla)
+Obiettivo: Full-duplex con soppressione eco
+File: VideoConference.Client/VideoManager.vb
+Metodi: OnAudioDataAvailable, ReceiveRemoteAudio
+3. Filtri BiQuad 🟡
+
+Problema: Producono valori NaN
+File: VideoConference.Client/VideoManager.vb
+Metodo: OnAudioDataAvailable
+4. Selezione schermo 🟢
+
+Mancante: Possibilità di scegliere quale monitor/finestra condividere
+File: VideoConference.Client/ScreenShareManager.vb
+Metodo: StartScreenShare
+5. Messaggi privati chat 🟢
+
+Mancante: Invio messaggi a utente specifico
+File: VideoConference.Client/MainWindow.xaml.vb
+🎯 PROSSIMI PASSI (Priorità)
+🔴 Priorità Alta
+
+    Fix UpdateParticipantStatus - Mantenere stato screen sharing
+
+    Echo cancellation - Migliorare qualità audio
+
+    Shortcut tastiera - Ctrl+D (condividi), Ctrl+M (mute), Ctrl+Q (chat)
+
+🟡 Priorità Media
+
+    Selezione schermo/finestra - Per screen sharing
+
+    Messaggi privati - In chat
+
+    Tema chiaro/scuro - UI toggle
+
+    Qualità adattiva - FPS/risoluzione in base alla banda
+
+🟢 Priorità Bassa
+
+    Registrazione chiamate - Salvare video/audio
+
+    Condivisione file - Drag & drop
+
+    Lavagna interattiva - Disegno condiviso
+
+📊 STATO PROGRESSI
+Area	Stato
+Core funzionalità	80%
+UI/UX	60%
+Audio	70%
+Video	80%
+Screen sharing	85%
+Chat	70%
+Server/Dashboard	90%
+Performance	50%
+Sicurezza	20%
+🔧 CODICE CRITICO DA MODIFICARE
+Server - ConferenceHub.vb (UpdateParticipantStatus)
+vb
+
+' 🔴 PROBLEMA: Questo metodo resetta isScreenSharing a false
+Public Async Function UpdateParticipantStatus(roomId As String, hasVideo As Boolean, hasAudio As Boolean) As Task
+    Try
+        Dim status As UserStatus = Nothing
+        If _userStatus.TryGetValue(Context.ConnectionId, status) Then
+            ' ✏️ DA CORREGGERE: Mantenere isScreenSharing corrente
+            status.HasVideo = hasVideo
+            status.HasAudio = hasAudio
+            ' status.IsScreenSharing ???  ← Non deve essere modificato!
+        End If
+        
+        ' Aggiorna monitoring
+        _monitoring.UpdateUserStatus(Context.ConnectionId, roomId, hasVideo, hasAudio, 
+                                     If(status IsNot Nothing, status.IsScreenSharing, False))
+        
+        Await BroadcastParticipantsList(roomId)
+    Catch ex As Exception
+        Debug.Print($"Errore: {ex.Message}")
+    End Try
+End Function
+
+Client - VideoManager.vb (Filtri audio)
+vb
+
+' 🟡 PROBLEMA: Filtri BiQuad producono NaN
+Private Sub OnAudioDataAvailable(sender As Object, e As WaveInEventArgs)
+    ' Attualmente usa filtri che causano NaN
+    ' Da rivedere o sostituire con approccio più semplice
+End Sub
+
+🌐 ENDPOINT ATTIVI (Server)
+URL	Descrizione
+http://localhost:5000/	Pagina di benvenuto
+http://localhost:5000/dashboard	Dashboard monitoraggio
+http://localhost:5000/api/stats	API JSON statistiche
+http://localhost:5000/conferencehub	SignalR Hub
+📝 NOTE SVILUPPO
+Convenzioni naming
+
+    Server: VB.NET (eccetto Models in C# per compatibilità view)
+
+    Client: VB.NET
+
+    SignalR metodi: PascalCase (es. SendVideoFrameToAll)
+
+    Eventi client: Nome significativo (es. ReceiveVideoFrame)
+
+Branch consigliati
+
+    main - Versione stabile
+
+    develop - Sviluppo
+
+    feature/audio-fix - Per fix audio
+
+    feature/screen-select - Per selezione schermo
+
+Test
+
+    Sempre testare con due computer fisici
+
+    Verificare log server e client
+
+    Controllare console browser per dashboard
+
+📊 STATISTICHE PROGETTO
+
+    File: ~25
+
+    Linee di codice: ~5000
+
+    Messaggi in chat: ~500
+
+    Funzionalità core: 12/15 completate
+
+🚀 PROSSIMA CHAT - OBIETTIVO PRINCIPALE
+
+Fix Priority 1: Correggere UpdateParticipantStatus per mantenere lo stato screen sharing quando si ferma l'audio.
+vb
+
+' Soluzione attesa:
+' 1. Leggere stato corrente dal dizionario
+' 2. Aggiornare solo video e audio
+' 3. Mantenere inalterato isScreenSharing
+' 4. Aggiornare monitoring con tutti i valori
+
+📌 PER INIZIARE LA NUOVA CHAT
+
+    Copia tutto questo messaggio
+
+    Apri nuova chat
+
+    Incolla come primo messaggio
+
+Partiamo dal fix per l'audio che resetta lo screen sharing. Ecco il codice da modificare in ConferenceHub.vb
+Imports System.Collections.Concurrent
+Imports Microsoft.AspNetCore
+Imports Microsoft.AspNetCore.SignalR
+
+Namespace Hubs
+    Public Class ConferenceHub
+        Inherits Hub
+
+        Private Shared ReadOnly _connections As New ConcurrentDictionary(Of String, String)()
+        Private Shared ReadOnly _rooms As New ConcurrentDictionary(Of String, String)()
+        Private Shared ReadOnly _userStatus As New ConcurrentDictionary(Of String, UserStatus)()
+        Private Shared ReadOnly _activeScreenSharer As New ConcurrentDictionary(Of String, String)() ' Key: roomId, Value: connectionId
+        Private Shared ReadOnly _monitoring As New MonitoringService()
+
+        ' Classe per tenere traccia dello stato utente
+        Private Class UserStatus
+            Public Property UserName As String
+            Public Property HasVideo As Boolean
+            Public Property HasAudio As Boolean
+            Public Property IsScreenSharing As Boolean
+        End Class
+
+        Public Overrides Async Function OnConnectedAsync() As Task
+            Dim connectionId = Context.ConnectionId
+            _monitoring.AddLogMessage($"Client connected: {connectionId}")
+            Await MyBase.OnConnectedAsync()
+        End Function
+
+        Public Overrides Async Function OnDisconnectedAsync(exception As Exception) As Task
+            Try
+                Dim connectionId = Context.ConnectionId
+                Dim userName As String = ""
+                Dim roomId As String = Nothing
+
+                ' Ottieni il nome utente prima di rimuovere tutto
+                If _connections.TryGetValue(connectionId, userName) Then
+                    ' Ottieni la stanza prima di rimuovere
+                    _rooms.TryGetValue(connectionId, roomId)
+
+                    ' Log della disconnessione
+                    _monitoring.AddLogMessage($"Client disconnesso: {userName} (ID: {connectionId})")
+                End If
+
+                ' Rimuovi lo stato utente
+                _userStatus.TryRemove(Context.ConnectionId, Nothing)
+
+                ' Rimuovi dalla stanza
+                If Not String.IsNullOrEmpty(roomId) Then
+                    ' Notifica a tutti che l'utente ha fermato il video (se era attivo)
+                    If _userStatus.ContainsKey(Context.ConnectionId) AndAlso _userStatus(Context.ConnectionId).HasVideo Then
+                        Await Clients.OthersInGroup(roomId).SendAsync("VideoStopped", Context.ConnectionId)
+                        _monitoring.AddLogMessage($"Video fermato: ""{userName}"" in stanza ""{roomId}""")
+                    End If
+
+                    ' Notifica a tutti che l'utente ha fermato l'audio (se era attivo)
+                    If _userStatus.ContainsKey(Context.ConnectionId) AndAlso _userStatus(Context.ConnectionId).HasAudio Then
+                        Await Clients.OthersInGroup(roomId).SendAsync("AudioStopped", Context.ConnectionId)
+                        _monitoring.AddLogMessage($"Audio fermato: ""{userName}"" in stanza ""{roomId}""")
+                    End If
+
+                    ' Se questo utente stava condividendo lo schermo, rimuovilo
+                    Dim sharer As String = Nothing
+                    If _activeScreenSharer.TryGetValue(roomId, sharer) AndAlso sharer = Context.ConnectionId Then
+                        _activeScreenSharer.TryRemove(roomId, Nothing)
+                        Await Clients.Group(roomId).SendAsync("ScreenShareStopped", connectionId)
+                        _monitoring.AddLogMessage($"Screen share fermato: ""{userName}"" in stanza ""{roomId}""")
+                    End If
+                    Await Clients.Group(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
+                End If
+
+                ' Notifica agli altri che l'utente ha lasciato
+                Await Clients.OthersInGroup(roomId).SendAsync("UserLeft", Context.ConnectionId)
+
+                ' Rimuovi dal monitoraggio
+                _monitoring.RemoveUser(connectionId, roomId)
+
+                _rooms.TryRemove(Context.ConnectionId, Nothing)
+
+                ' AGGIORNA LA LISTA PER TUTTI
+                Await BroadcastParticipantsList(roomId)
+
+                _connections.TryRemove(Context.ConnectionId, Nothing)
+
+                _monitoring.AddLogMessage($"Utente ""{userName}"" ha lasciato la stanza ""{roomId}""")
+
+                Debug.Print($"Client disconnected: {Context.ConnectionId}")
+
+            Catch ex As Exception
+                Debug.Print($"Errore in OnDisconnectedAsync: {ex.Message}")
+            End Try
+
+            Await MyBase.OnDisconnectedAsync(exception)
+        End Function
+
+        Public Async Function JoinRoom(roomId As String, userName As String) As Task
+            ' Salva l'utente e la stanza
+            _connections(Context.ConnectionId) = userName
+            _rooms(Context.ConnectionId) = roomId
+
+            ' Inizializza stato utente
+            _userStatus(Context.ConnectionId) = New UserStatus With {
+                                                                    .UserName = userName,
+                                                                    .HasVideo = False,
+                                                                    .HasAudio = False,
+                                                                    .IsScreenSharing = False
+                                                                    }
+
+            ' AGGIUNGI AL MONITORAGGIO
+            _monitoring.AddOrUpdateRoom(roomId, Context.ConnectionId, userName)
+            _monitoring.AddLogMessage($"Utente ""{userName}"" si è unito alla stanza ""{roomId}""")
+            _monitoring.UpdateUserStatus(Context.ConnectionId, roomId, False, False, False)
+
+            Await Groups.AddToGroupAsync(Context.ConnectionId, roomId)
+
+            ' Notifica agli altri nella stanza
+            Await Clients.Groups(roomId).SendAsync("UserJoined", Context.ConnectionId, userName)
+
+            ' Ottieni la lista degli utenti escluso il nuovo
+            Dim existingUsersList = GetParticipantsInRoom(roomId) ', Context.ConnectionId)
+
+            ' AGGIORNA LA LISTA PER TUTTI
+            Await BroadcastParticipantsList(roomId)
+
+            Await Clients.Caller.SendAsync("ExistingUsers", existingUsersList)
+
+        End Function
+
+        Private Function GetParticipantsInRoom(roomId As String, Optional excludeConnectionId As String = Nothing) As List(Of UserInfo)
+            Dim result = New List(Of UserInfo)()
+
+            For Each conn In _rooms.Where(Function(r) r.Value = roomId AndAlso
+                                         (excludeConnectionId Is Nothing OrElse r.Key <> excludeConnectionId))
+                Dim status = _userStatus.GetValueOrDefault(conn.Key)
+                result.Add(New UserInfo With {
+            .ConnectionId = conn.Key,
+            .UserName = _connections.GetValueOrDefault(conn.Key, "Utente"),
+            .HasVideo = If(status IsNot Nothing, status.HasVideo, False),
+            .HasAudio = If(status IsNot Nothing, status.HasAudio, False),
+            .IsScreenSharing = If(status IsNot Nothing, status.IsScreenSharing, False)
+        })
+            Next
+
+            Return result
+        End Function
+
+        Public Async Function SendOffer(roomId As String, targetConnectionId As String, offer As Object) As Task
+            Await Clients.Client(targetConnectionId).SendAsync("ReceiveOffer", Context.ConnectionId, offer)
+        End Function
+
+        Public Async Function SendAnswer(roomId As String, targetConnectionId As String, answer As Object) As Task
+            Await Clients.Client(targetConnectionId).SendAsync("ReceiveAnswer", Context.ConnectionId, answer)
+        End Function
+
+        Public Async Function SendIceCandidate(roomId As String, targetConnectionId As String, candidate As Object) As Task
+            Await Clients.Client(targetConnectionId).SendAsync("ReceiveIceCandidate", Context.ConnectionId, candidate)
+        End Function
+
+        Public Async Function SendVideoFrame(roomId As String, targetConnectionId As String, frameData As Byte(), width As Integer, height As Integer) As Task
+            Await Clients.Client(targetConnectionId).SendAsync("ReceiveVideoFrame", Context.ConnectionId, frameData, width, height)
+        End Function
+
+        Public Async Function SendVideoFrameToAll(roomId As String, frameData As Byte(), width As Integer, height As Integer) As Task
+            Await Clients.OthersInGroup(roomId).SendAsync("ReceiveVideoFrame", Context.ConnectionId, frameData, width, height)
+        End Function
+
+        Public Async Function SendAudioData(roomId As String, targetConnectionId As String, audioData As Byte()) As Task
+            'Await Clients.Client(targetConnectionId).SendAsync("ReceiveAudioData", Context.ConnectionId, audioData)
+
+            Try
+                If audioData Is Nothing OrElse audioData.Length = 0 Then
+                    Debug.Print("SendAudioData: audioData nullo o vuoto")
+                    Return
+                End If
+
+                Debug.Print($"SendAudioData: Invio {audioData.Length} bytes a {targetConnectionId}")
+
+                Await Clients.Client(targetConnectionId).SendAsync("ReceiveAudioData", Context.ConnectionId, audioData)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in SendAudioData: {ex.Message}")
+            End Try
+
+        End Function
+
+        Public Async Function SendAudioDataToAll(roomId As String, audioData As Byte()) As Task
+            'Await Clients.OthersInGroup(roomId).SendAsync("ReceiveAudioData", Context.ConnectionId, audioData)
+            Try
+                If audioData Is Nothing OrElse audioData.Length = 0 Then
+                    Debug.Print("SendAudioDataToAll: audioData nullo o vuoto")
+                    Return
+                End If
+
+                Debug.Print($"SendAudioDataToAll: Invio {audioData.Length} bytes a tutti nella stanza {roomId}")
+
+                Await Clients.OthersInGroup(roomId).SendAsync("ReceiveAudioData",
+                    Context.ConnectionId, audioData)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in SendAudioDataToAll: {ex.Message}")
+            End Try
+
+        End Function
+
+        Public Async Function SendScreenFrame(roomId As String, targetConnectionId As String, frameData As Byte(), width As Integer, height As Integer) As Task
+            Try
+                If frameData Is Nothing OrElse frameData.Length = 0 Then
+                    Debug.Print("SendScreenFrame: frameData nullo o vuoto")
+                    Return
+                End If
+
+                Debug.Print($"SendScreenFrame: Invio frame {width}x{height} ({frameData.Length} bytes) a {targetConnectionId}")
+
+                Await Clients.Client(targetConnectionId).SendAsync("ReceiveScreenFrame",
+                    Context.ConnectionId,
+                    frameData,
+                    width,
+                    height)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in SendScreenFrame: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function SendScreenFrameToAll(roomId As String, frameData As Byte(), width As Integer, height As Integer) As Task
+            Try
+                If frameData Is Nothing OrElse frameData.Length = 0 Then
+                    Debug.Print("SendScreenFrameToAll: frameData nullo o vuoto")
+                    Return
+                End If
+
+                Debug.Print($"SendScreenFrameToAll: Invio frame {width}x{height} ({frameData.Length} bytes) a tutti nella stanza {roomId}")
+
+                Await Clients.OthersInGroup(roomId).SendAsync("ReceiveScreenFrame",
+                    Context.ConnectionId,
+                    frameData,
+                    width,
+                    height)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in SendScreenFrameToAll: {ex.Message}")
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Invia un messaggio chat a tutti gli altri nella stanza
+        ''' </summary>
+        Public Async Function SendChatMessage(roomId As String, userName As String, message As String) As Task
+            Try
+                If String.IsNullOrEmpty(message) Then
+                    Debug.Print("SendChatMessage: messaggio vuoto")
+                    Return
+                End If
+
+                Debug.Print($"SendChatMessage: {userName} in {roomId}: {message}")
+
+                ' Invia a tutti gli altri nella stanza
+                Await Clients.OthersInGroup(roomId).SendAsync("ReceiveChatMessage",
+                    userName,
+                    message,
+                    DateTime.Now)
+
+                ' Opzionale: Invia anche al mittente per conferma (echo)
+                'Await Clients.Caller.SendAsync("ReceiveChatMessage", userName, message, DateTime.Now)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in SendChatMessage: {ex.Message}")
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Invia un messaggio privato a un utente specifico
+        ''' </summary>
+        Public Async Function SendPrivateMessage(targetConnectionId As String, userName As String, message As String) As Task
+            Try
+                If String.IsNullOrEmpty(message) Then Return
+
+                Debug.Print($"SendPrivateMessage: {userName} -> {targetConnectionId}: {message}")
+
+                Await Clients.Client(targetConnectionId).SendAsync("ReceivePrivateMessage",
+                    userName,
+                    message,
+                    DateTime.Now)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in SendPrivateMessage: {ex.Message}")
+            End Try
+        End Function
+
+        ' ========== METODI PER STATO PARTECIPANTI ==========
+
+        ''' <summary>
+        ''' Aggiorna lo stato video/audio di un partecipante
+        ''' </summary>
+        Public Async Function UpdateParticipantStatus(roomId As String, hasVideo As Boolean, hasAudio As Boolean) As Task
+            Try
+
+                Dim status As UserStatus = Nothing
+                If _userStatus.TryGetValue(Context.ConnectionId, status) Then
+                    ' Aggiorna solo video e audio, ma MANTIENI isScreenSharing
+                    status.HasVideo = hasVideo
+                    status.HasAudio = hasAudio
+                    ' NON modificare status.IsScreenSharing!
+                Else
+                    ' Se non esiste, crea nuovo stato
+                    status = New UserStatus With {
+                                                .UserName = _connections.GetValueOrDefault(Context.ConnectionId, "Utente"),
+                                                .HasVideo = hasVideo,
+                                                .HasAudio = hasAudio,
+                                                .IsScreenSharing = False
+                                                }
+                    _userStatus(Context.ConnectionId) = status
+                End If
+
+                ' Aggiorna il monitoraggio
+                _monitoring.UpdateUserStatus(Context.ConnectionId, roomId, status.HasVideo, status.HasAudio, status.IsScreenSharing)
+
+                Debug.Print($"UpdateParticipantStatus: {Context.ConnectionId} - Video:{hasVideo}, Audio:{hasAudio}")
+
+                '' Notifica tutti gli altri nella stanza
+                'Await Clients.OthersInGroup(roomId).SendAsync("ParticipantStatusChanged",
+                '    Context.ConnectionId,
+                '    hasVideo,
+                '    hasAudio)
+
+                ' Notifica tutti (incluso il mittente) del cambiamento
+                Await BroadcastParticipantsList(roomId)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in UpdateParticipantStatus: {ex.Message}")
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Aggiorna lo stato di condivisione schermo
+        ''' </summary>
+        Public Async Function UpdateScreenSharingStatus(roomId As String, isSharing As Boolean) As Task
+            Try
+                Dim status = _userStatus.GetOrAdd(Context.ConnectionId, New UserStatus())
+                status.IsScreenSharing = isSharing
+
+                _monitoring.UpdateUserStatus(Context.ConnectionId, roomId,
+                                             status.HasVideo,
+                                             status.HasAudio,
+                                             status.IsScreenSharing)
+
+                Debug.Print($"UpdateScreenSharingStatus: {Context.ConnectionId} - Sharing:{isSharing}")
+
+                ' Notifica tutti (incluso il mittente) del cambiamento
+                Await BroadcastParticipantsList(roomId)
+
+            Catch ex As Exception
+                Debug.Print($"Errore in UpdateScreenSharingStatus: {ex.Message}")
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Ottiene la lista di tutti i partecipanti con i loro stati
+        ''' </summary>
+        Public Function GetParticipants(roomId As String) As List(Of Object)
+            Try
+                Dim participants = New List(Of Object)()
+
+                For Each conn In _rooms.Where(Function(r) r.Value = roomId AndAlso r.Key <> Context.ConnectionId)
+                    Dim status = _userStatus.GetValueOrDefault(conn.Key)
+                    participants.Add(New With {
+                        Key .ConnectionId = conn.Key,
+                        Key .UserName = _connections.GetValueOrDefault(conn.Key, "Utente"),
+                        Key .HasVideo = If(status IsNot Nothing, status.HasVideo, False),
+                        Key .HasAudio = If(status IsNot Nothing, status.HasAudio, False),
+                        Key .IsScreenSharing = If(status IsNot Nothing, status.IsScreenSharing, False)
+                    })
+                Next
+
+                Return participants
+
+            Catch ex As Exception
+                Debug.Print($"Errore in GetParticipants: {ex.Message}")
+                Return New List(Of Object)()
+            End Try
+        End Function
+
+        Private Async Function BroadcastParticipantsList(roomId As String) As Task
+            Try
+                Dim participants = GetParticipantsInRoom(roomId)
+
+                ' Invia a TUTTI i client nella stanza
+                Await Clients.Group(roomId).SendAsync("ParticipantsList", participants)
+
+                Debug.Print($"BroadcastParticipantsList: {participants.Count} partecipanti in stanza {roomId}")
+
+            Catch ex As Exception
+                Debug.Print($"Errore in BroadcastParticipantsList: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function StartScreenShare(roomId As String) As Task(Of Boolean)
+            Try
+                ' Verifica se qualcuno sta già condividendo in questa stanza
+                If _activeScreenSharer.ContainsKey(roomId) Then
+                    Dim currentSharer = _activeScreenSharer(roomId)
+                    Debug.Print($"StartScreenShare: {roomId} già condiviso da {currentSharer}")
+
+                    ' Notifica al chiamante che non può condividere
+                    Await Clients.Caller.SendAsync("ScreenShareBlocked", "Qualcun altro sta già condividendo lo schermo")
+                    Return False
+                End If
+
+                ' Registra questo utente come screen sharer
+                _activeScreenSharer(roomId) = Context.ConnectionId
+
+                ' Aggiorna stato utente
+                If _userStatus.ContainsKey(Context.ConnectionId) Then
+                    _userStatus(Context.ConnectionId).IsScreenSharing = True
+                End If
+
+                Debug.Print($"StartScreenShare: {Context.ConnectionId} sta condividendo in stanza {roomId}")
+
+                ' Notifica a tutti (incluso il mittente) che lo screenshare è iniziato
+                Await Clients.Group(roomId).SendAsync("ScreenShareStarted", Context.ConnectionId)
+
+                ' Aggiorna lista partecipanti
+                Await BroadcastParticipantsList(roomId)
+
+                Return True
+
+            Catch ex As Exception
+                Debug.Print($"Errore in StartScreenShare: {ex.Message}")
+                Return False
+            End Try
+        End Function
+
+        Public Async Function StopScreenShare(roomId As String) As Task
+            'Try
+            '    Debug.Print($"StopScreenShare: {Context.ConnectionId} ha fermato la condivisione in stanza {roomId}")
+
+            '    ' Notifica a tutti gli altri che lo screenshare è terminato
+            '    Await Clients.OthersInGroup(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
+
+            '    ' Aggiorna lo stato utente
+            '    If _userStatus.ContainsKey(Context.ConnectionId) Then
+            '        _userStatus(Context.ConnectionId).IsScreenSharing = False
+            '    End If
+
+            '    ' Opzionale: aggiorna la lista partecipanti
+            '    Await BroadcastParticipantsList(roomId)
+
+            'Catch ex As Exception
+            '    Debug.Print($"Errore in StopScreenShare: {ex.Message}")
+            'End Try
+            Try
+                ' Verifica che questo utente stia effettivamente condividendo
+                Dim sharer As String = Nothing
+                If _activeScreenSharer.TryGetValue(roomId, sharer) AndAlso sharer = Context.ConnectionId Then
+                    _activeScreenSharer.TryRemove(roomId, Nothing)
+
+                    Debug.Print($"StopScreenShare: {Context.ConnectionId} ha fermato condivisione in stanza {roomId}")
+
+                    ' Aggiorna stato utente
+                    If _userStatus.ContainsKey(Context.ConnectionId) Then
+                        _userStatus(Context.ConnectionId).IsScreenSharing = False
+                    End If
+
+                    ' Notifica a tutti (incluso il mittente) che lo screenshare è finito
+                    Await Clients.Group(roomId).SendAsync("ScreenShareStopped", Context.ConnectionId)
+
+                    ' Aggiorna lista partecipanti
+                    Await BroadcastParticipantsList(roomId)
+                End If
+
+            Catch ex As Exception
+                Debug.Print($"Errore in StopScreenShare: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function SendCursorPosition(roomId As String, x As Integer, y As Integer) As Task
+            Try
+                ' Invia a tutti gli altri nella stanza
+                Await Clients.OthersInGroup(roomId).SendAsync("CursorPosition", Context.ConnectionId, x, y)
+                Debug.Print($"Cursor position sent: ({x}, {y})")
+            Catch ex As Exception
+                Debug.Print($"Errore in SendCursorPosition: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function RequestScreenDimensions(roomId As String, targetConnectionId As String) As Task
+            Try
+                Await Clients.Client(targetConnectionId).SendAsync("SendScreenDimensions", Context.ConnectionId)
+            Catch ex As Exception
+                Debug.Print($"Errore in RequestScreenDimensions: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function SendScreenDimensions(roomId As String, width As Integer, height As Integer) As Task
+            Try
+                Await Clients.OthersInGroup(roomId).SendAsync("ScreenDimensions", width, height)
+            Catch ex As Exception
+                Debug.Print($"Errore in SendScreenDimensions: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function StopVideo(roomId As String) As Task
+            Try
+                Debug.Print($"🛑 SERVER: StopVideo da {Context.ConnectionId} in stanza {roomId}")
+
+                ' Notifica a tutti gli altri che il video è terminato
+                Await Clients.OthersInGroup(roomId).SendAsync("VideoStopped", Context.ConnectionId)
+
+                ' Aggiorna stato utente
+                If _userStatus.ContainsKey(Context.ConnectionId) Then
+                    _userStatus(Context.ConnectionId).HasVideo = False
+                End If
+
+                ' Opzionale: aggiorna lista partecipanti
+                Await BroadcastParticipantsList(roomId)
+
+            Catch ex As Exception
+                Debug.Print($"❌ SERVER Errore in StopVideo: {ex.Message}")
+            End Try
+        End Function
+
+        Public Async Function StopAudio(roomId As String) As Task
+            Try
+                Debug.Print($"🛑 SERVER: StopAudio da {Context.ConnectionId} in stanza {roomId}")
+
+                ' Notifica a tutti gli altri che il video è terminato
+                Await Clients.OthersInGroup(roomId).SendAsync("AudioStopped", Context.ConnectionId)
+
+                ' Aggiorna stato utente
+                If _userStatus.ContainsKey(Context.ConnectionId) Then
+                    _userStatus(Context.ConnectionId).HasAudio = False
+                End If
+
+                ' Opzionale: aggiorna lista partecipanti
+                Await BroadcastParticipantsList(roomId)
+
+            Catch ex As Exception
+                Debug.Print($"❌ SERVER Errore in StopAudio: {ex.Message}")
+            End Try
+        End Function
+
+    End Class
+
+    Public Class UserInfo
+        Public Property ConnectionId As String
+        Public Property UserName As String
+        Public Property HasVideo As Boolean
+        Public Property HasAudio As Boolean
+        Public Property IsScreenSharing As Boolean
+    End Class
+
+End Namespace
+
+Ottimo! Analizziamo il problema e implementiamo la soluzione. Hai ragione, il problema è che UpdateParticipantStatus non sta preservando lo stato IsScreenSharing. Ecco la versione corretta del metodo:
+🔧 FIX PER UpdateParticipantStatus
+vb
+
+''' <summary>
+''' Aggiorna lo stato video/audio di un partecipante
+''' </summary>
+Public Async Function UpdateParticipantStatus(roomId As String, hasVideo As Boolean, hasAudio As Boolean) As Task
+    Try
+        Dim status As UserStatus = Nothing
+        Dim currentScreenSharing As Boolean = False
+        
+        ' Prima leggiamo lo stato corrente per preservare IsScreenSharing
+        If _userStatus.TryGetValue(Context.ConnectionId, status) Then
+            ' Salva il valore corrente di IsScreenSharing
+            currentScreenSharing = status.IsScreenSharing
+            
+            ' Aggiorna solo video e audio
+            status.HasVideo = hasVideo
+            status.HasAudio = hasAudio
+            ' RIPRISTINA IsScreenSharing (anche se non dovrebbe cambiare, lo facciamo per sicurezza)
+            status.IsScreenSharing = currentScreenSharing
+        Else
+            ' Se non esiste, crea nuovo stato
+            Dim userName = _connections.GetValueOrDefault(Context.ConnectionId, "Utente")
+            status = New UserStatus With {
+                .UserName = userName,
+                .HasVideo = hasVideo,
+                .HasAudio = hasAudio,
+                .IsScreenSharing = False
+            }
+            _userStatus(Context.ConnectionId) = status
+        End If
+
+        ' Aggiorna il monitoraggio con TUTTI gli stati (incluso screen sharing)
+        _monitoring.UpdateUserStatus(
+            Context.ConnectionId, 
+            roomId, 
+            status.HasVideo, 
+            status.HasAudio, 
+            status.IsScreenSharing
+        )
+
+        Debug.Print($"UpdateParticipantStatus: {Context.ConnectionId} - Video:{hasVideo}, Audio:{hasAudio}, Screen:{status.IsScreenSharing}")
+
+        ' Notifica tutti (incluso il mittente) del cambiamento
+        Await BroadcastParticipantsList(roomId)
+
+    Catch ex As Exception
+        Debug.Print($"❌ Errore in UpdateParticipantStatus: {ex.Message}")
+    End Try
+End Function
+
+📋 SPIEGAZIONE DELLA SOLUZIONE
+
+    Leggiamo lo stato corrente prima di modificarlo
+
+    Salviamo il valore IsScreenSharing in una variabile temporanea
+
+    Aggiorniamo solo HasVideo e HasAudio
+
+    Ripristiniamo IsScreenSharing al valore originale
+
+    Aggiorniamo il monitoring con tutti e tre i valori corretti
+
+🎯 VERIFICHE AGGIUNTIVE CONSIGLIATE
+
+Per sicurezza, controlla anche che il metodo StopAudio nel client non stia causando problemi:
+In MainWindow.xaml.vb (client):
+vb
+
+Private Async Sub btnAudio_Click(sender As Object, e As RoutedEventArgs)
+    Try
+        If _isAudioActive Then
+            ' Ferma audio
+            _videoManager?.StopAudio()
+            _isAudioActive = False
+            btnAudio.Content = "🎤 Audio"
+            
+            ' ✅ IMPORTANTE: Non resettare lo stato screen sharing qui!
+            ' Il server gestirà correttamente UpdateParticipantStatus
+            
+            ' Aggiorna stato sul server (solo audio, screen sharing rimane invariato)
+            If _hubConnection IsNot Nothing AndAlso _hubConnection.State = HubConnectionState.Connected Then
+                Await _hubConnection.InvokeAsync("UpdateParticipantStatus", 
+                    _currentRoom, 
+                    _isVideoActive,  ' Mantieni stato video corrente
+                    False)           ' Audio spento
+            End If
+        Else
+            ' ... avvia audio ...
+        End If
+    Catch ex As Exception
+        MessageBox.Show($"Errore audio: {ex.Message}")
+    End Try
+End Sub
+
+🧪 TEST RACCOMANDATI
+
+Dopo aver applicato il fix, testa questi scenari:
+
+    Scenario base:
+
+        Avvia video + audio + screen sharing
+
+        Ferma solo audio → Verifica che screen sharing rimanga attivo
+
+    Scenario combinato:
+
+        Avvia solo screen sharing
+
+        Attiva/disattiva audio → Screen sharing deve rimanere
+
+    Scenario disconnessione:
+
+        Con screen sharing attivo, chiudi client
+
+        Verifica che il server rimuova correttamente lo screen sharer
+
+📊 LOG DI DEBUG DA AGGIUNGERE
+
+Nel server, aggiungi questi log per monitorare:
+vb
+
+' In StartScreenShare:
+Debug.Print($"✅ SCREEN SHARE AVVIATO: {Context.ConnectionId} in stanza {roomId}")
+
+' In StopScreenShare:
+Debug.Print($"🛑 SCREEN SHARE FERMATO: {Context.ConnectionId} in stanza {roomId}")
+
+' In UpdateParticipantStatus:
+Debug.Print($"📊 STATO UTENTE: {Context.ConnectionId} - Video:{hasVideo}, Audio:{hasAudio}, Screen:{If(status IsNot Nothing, status.IsScreenSharing, False)}")
+
+Questo fix dovrebbe risolvere il problema #1. Vuoi che procediamo con gli altri punti della priority list o preferisci testare prima questo fix?
+ok fixato. vorrei lavorare sulla parte server, dimmi se sei pronto
+
+Sì, sono pronto! 🚀
+
+Prima di procedere, fammi capire meglio su quale aspetto del server vuoi lavorare. Dalle tue priorità, abbiamo diverse aree server-side su cui possiamo intervenire:
+🔍 AREE SERVER DA MIGLIORARE
+1. Sicurezza (Priorità Alta - 20% completato)
+
+    Autenticazione JWT per le connessioni SignalR
+
+    Autorizzazione stanze private
+
+    Rate limiting per prevenire spam
+
+    Validazione input lato server
+
+2. Performance (Priorità Media - 50% completato)
+
+    Ottimizzazione broadcast messaggi
+
+    Gestione memoria per le stanze
+
+    Compressione dati (specialmente per video)
+
+    Load balancing (se pensi a multi-server)
+
+3. Monitoring/Dashboard (Priorità Media - 90% completato)
+
+    Aggiungere metriche in tempo reale
+
+    Storico delle sessioni
+
+    Esportazione log
+
+    Alert per problemi
+
+4. Nuove Feature Server
+
+    Recording delle sessioni
+
+    Trascrizione chat
+
+    Moderazione
+
+    Webhook per integrazioni
+
+📋 COSA VUOI AFFRONTARE?
+
+Fammi sapere su quale area vuoi concentrarti e ti guiderò nell'implementazione.
+
+Se non hai preferenze specifiche, ti suggerirei di partire dalla Sicurezza, dato che è al 20% ed è fondamentale per un'app di produzione. Potremmo implementare:
+
+    Autenticazione JWT per le connessioni SignalR
+
+    Protezione stanze con password/private
+
+    Validazione messaggi chat (XSS protection)
+
+    Rate limiting per prevenire DoS
+
+Oppure, se preferisci, possiamo lavorare sul MonitoringService per renderlo più robusto e aggiungere statistiche avanzate.
+
+Cosa preferisci? 🎯
+Quando avvio la parte server si apre una finstra console, ma se io faccio il logout l'applicazione si ferma? Se sì, allora dobbiamo modificare questa parte.
+
+Hai perfettamente ragione! 🎯
+
+Attualmente il server è un'applicazione console che si ferma quando chiudi la finestra o fai logout. Dobbiamo trasformarlo in un Windows Service o configurarlo per girare come background process indipendentemente dalla sessione utente.
+🛠️ SOLUZIONI POSSIBILI
+Opzione 1: Windows Service (Consigliata per produzione)
+
+Trasformare il server in un vero Windows Service che:
+
+    Si avvia automaticamente con Windows
+
+    Gira in background indipendentemente dall'utente loggato
+
+    Si riavvia automaticamente in caso di crash
+
+Opzione 2: IIS Hosting
+
+Ospitare su IIS come applicazione web normale
+Opzione 3: Docker Container
+
+Containerizzare per maggiore flessibilità
+📝 IMPLEMENTIAMO LA OPAZIONE 1 - Windows Service
+
+Ecco come modificare il Program.vb per supportare sia modalità console che servizio:
+vb
+
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+Imports System.ServiceProcess
+Imports System.Threading.Tasks
+
+Module Program
+    Private Sub Main(args As String())
+        ' Determina se eseguire come servizio o console
+        If Environment.UserInteractive OrElse Not WindowsServiceHelpers.IsWindowsService()
+            ' Modalità Console (per sviluppo)
+            RunAsConsole(args).GetAwaiter().GetResult()
+        Else
+            ' Modalità Windows Service
+            RunAsService()
+        End If
+    End Sub
+
+    Private Async Function RunAsConsole(args As String()) As Task
+        Console.WriteLine("🚀 VideoConference Server - Modalità Console")
+        Console.WriteLine("Premi Ctrl+C per fermare il server")
+        Console.WriteLine("----------------------------------------")
+        
+        Dim builder = CreateHostBuilder(args)
+        Dim host = builder.Build()
+        
+        ' Gestione graceful shutdown
+        Dim cancelTokenSource = New CancellationTokenSource()
+        Console.CancelKeyPress += Sub(sender, e)
+                                      Console.WriteLine("🛑 Fermando il server...")
+                                      e.Cancel = True
+                                      cancelTokenSource.Cancel()
+                                  End Sub
+        
+        Try
+            Await host.RunAsync(cancelTokenSource.Token)
+        Catch ex As TaskCanceledException
+            ' Normale shutdown
+        Catch ex As Exception
+            Console.WriteLine($"❌ Errore: {ex.Message}")
+        End Try
+        
+        Console.WriteLine("✅ Server fermato")
+    End Function
+
+    Private Sub RunAsService()
+        Dim service = New VideoConferenceService()
+        ServiceBase.Run(service)
+    End Sub
+
+    Private Function CreateHostBuilder(args As String()) As IHostBuilder
+        Return Host.CreateDefaultBuilder(args).
+            ConfigureWebHostDefaults(Sub(webBuilder)
+                                          webBuilder.UseUrls("http://*:5000")
+                                          webBuilder.UseStartup(Of Startup)()
+                                      End Sub).
+            ConfigureServices(Sub(services)
+                                  ' Aggiungi MonitoringService come singleton
+                                  services.AddSingleton(Of MonitoringService)()
+                                  
+                                  ' Altri servizi...
+                              End Sub)
+    End Function
+End Module
+
+' Classe Windows Service
+Public Class VideoConferenceService
+    Inherits ServiceBase
+
+    Private _host As IHost
+    Private _cancellationTokenSource As CancellationTokenSource
+
+    Public Sub New()
+        Me.ServiceName = "VideoConferenceServer"
+        Me.CanStop = True
+        Me.CanShutdown = True
+        Me.AutoLog = True
+    End Sub
+
+    Protected Overrides Sub OnStart(args As String())
+        Try
+            ' Scrivi nel Windows Event Log
+            EventLog.WriteEntry("VideoConferenceServer", "Avvio del servizio...", EventLogEntryType.Information)
+            
+            _cancellationTokenSource = New CancellationTokenSource()
+            
+            Dim builder = CreateHostBuilder(args)
+            _host = builder.Build()
+            
+            ' Avvia il server in un thread separato
+            Task.Run(Async Function()
+                         Try
+                             Await _host.RunAsync(_cancellationTokenSource.Token)
+                         Catch ex As Exception
+                             EventLog.WriteEntry("VideoConferenceServer", 
+                                                 $"Errore durante l'esecuzione: {ex.Message}", 
+                                                 EventLogEntryType.Error)
+                         End Try
+                     End Function)
+            
+            EventLog.WriteEntry("VideoConferenceServer", "Servizio avviato correttamente", EventLogEntryType.Information)
+            
+        Catch ex As Exception
+            EventLog.WriteEntry("VideoConferenceServer", 
+                                $"Errore durante l'avvio: {ex.Message}", 
+                                EventLogEntryType.Error)
+            Throw
+        End Try
+    End Sub
+
+    Protected Overrides Sub OnStop()
+        Try
+            EventLog.WriteEntry("VideoConferenceServer", "Fermando il servizio...", EventLogEntryType.Information)
+            
+            _cancellationTokenSource?.Cancel()
+            
+            ' Aspetta che il host termini (max 30 secondi)
+            _host?.StopAsync(TimeSpan.FromSeconds(30)).GetAwaiter().GetResult()
+            _host?.Dispose()
+            
+            EventLog.WriteEntry("VideoConferenceServer", "Servizio fermato correttamente", EventLogEntryType.Information)
+            
+        Catch ex As Exception
+            EventLog.WriteEntry("VideoConferenceServer", 
+                                $"Errore durante la fermata: {ex.Message}", 
+                                EventLogEntryType.Error)
+        End Try
+    End Sub
+
+    Protected Overrides Sub OnShutdown()
+        OnStop()
+    End Sub
+End Class
+
+📦 AGGIUNGI I PACCHETTI NUGET NECESSARI
+
+Nel progetto server, aggiungi:
+xml
+
+<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
+<PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
+
+🔧 CREA LA CLASSE STARTUP
+
+Crea un nuovo file Startup.vb:
+vb
+
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+
+Public Class Startup
+    Public Sub ConfigureServices(services As IServiceCollection)
+        services.AddSignalR()
+        services.AddControllersWithViews()
+        services.AddCors()
+        
+        ' Servizi personalizzati
+        services.AddSingleton(Of MonitoringService)()
+    End Sub
+
+    Public Sub Configure(app As IApplicationBuilder, env As IWebHostEnvironment)
+        If env.IsDevelopment() Then
+            app.UseDeveloperExceptionPage()
+        End If
+
+        app.UseRouting()
+        
+        app.UseCors(Function(policy) 
+                        policy.AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .SetIsOriginAllowed(Function(origin) True)
+                              .AllowCredentials()
+                    End Function)
+
+        app.UseEndpoints(Sub(endpoints)
+                             endpoints.MapHub(Of ConferenceHub)("/conferencehub")
+                             endpoints.MapControllerRoute(
+                                 name:="default",
+                                 pattern:="{controller=Dashboard}/{action=Index}/{id?}")
+                         End Sub)
+    End Sub
+End Class
+
+📝 ISTRUZIONI PER INSTALLARE COME SERVIZIO
+1. Pubblica l'applicazione
+bash
+
+dotnet publish -c
+
+hai scritto "opazione" errore, stai attento. Mi piace l'opzione 2: IIS Hosting
+
+Hai ragione, scusa per l'errore! 😅 "Opzione" - grazie per la correzione.
+
+Perfetto, allora procediamo con l'Opzione 2: IIS Hosting. Questa è un'ottima scelta perché:
+
+✅ Vantaggi IIS:
+
+    Gestione automatica dei pool di applicazioni
+
+    Riavvio automatico in caso di crash
+
+    Isolamento processi
+
+    Gestione sessioni utente indipendente
+
+    Logging integrato
+
+    Gestione certificati SSL facile
+
+    Scaling su più worker process
+
+📝 MODIFICHE PER IIS HOSTING
+1. Crea/Modifica web.config (nella root del progetto server)
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+      </handlers>
+      <aspNetCore processPath="dotnet" 
+                  arguments=".\VideoConference.Server.dll" 
+                  stdoutLogEnabled="true" 
+                  stdoutLogFile=".\logs\stdout"
+                  hostingModel="inprocess">
+        <environmentVariables>
+          <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
+        </environmentVariables>
+      </aspNetCore>
+    </system.webServer>
+  </location>
+</configuration>
+
+2. Modifica Program.vb per IIS
+vb
+
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.Extensions.Hosting
+Imports Microsoft.Extensions.Logging
+
+Module Program
+    Sub Main(args As String())
+        Try
+            Console.WriteLine("🚀 VideoConference Server - Avvio in corso...")
+            Console.WriteLine($"📅 Data/Ora: {DateTime.Now}")
+            Console.WriteLine($"💻 Machine Name: {Environment.MachineName}")
+            Console.WriteLine($"🆚 OS Version: {Environment.OSVersion}")
+            Console.WriteLine("----------------------------------------")
+            
+            CreateHostBuilder(args).Build().Run()
+            
+        Catch ex As Exception
+            Console.WriteLine($"❌ ERRORE FATALE: {ex.Message}")
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}")
+            
+            ' Log su file di errore
+            File.WriteAllText("error_log.txt", 
+                $"Data: {DateTime.Now}{Environment.NewLine}" &
+                $"Errore: {ex.Message}{Environment.NewLine}" &
+                $"Stack: {ex.StackTrace}")
+            
+            ' Aspetta che l'utente legga l'errore
+            Console.WriteLine("Premi un tasto per uscire...")
+            Console.ReadKey()
+        End Try
+    End Sub
+
+    Public Function CreateHostBuilder(args As String()) As IHostBuilder
+        Return Host.CreateDefaultBuilder(args) _
+            .ConfigureWebHostDefaults(Sub(webBuilder)
+                                          webBuilder.UseStartup(Of Startup)()
+                                          webBuilder.UseIIS()  ' Abilita IIS
+                                          webBuilder.UseIISIntegration()  ' Integrazione IIS
+                                          webBuilder.CaptureStartupErrors(True)
+                                          webBuilder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true")
+                                      End Sub) _
+            .ConfigureLogging(Sub(logging)
+                                  logging.ClearProviders()
+                                  logging.AddConsole()
+                                  logging.AddDebug()
+                                  logging.AddEventLog()  ' Log su Windows Event Viewer
+                              End Sub)
+    End Function
+End Module
+
+3. Aggiorna Startup.vb per produzione
+vb
+
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.AspNetCore.Http
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+Imports Microsoft.Extensions.Logging
+
+Public Class Startup
+    Public Sub ConfigureServices(services As IServiceCollection)
+        ' SignalR con ottimizzazioni
+        services.AddSignalR(Function(options)
+                                options.EnableDetailedErrors = True
+                                options.MaximumReceiveMessageSize = 1024 * 1024 ' 1MB
+                                options.StreamBufferCapacity = 10
+                            End Function)
+        
+        ' MVC per dashboard
+        services.AddControllersWithViews()
+        
+        ' CORS per client esterni
+        services.AddCors(Function(options)
+                             options.AddPolicy("AllowAll",
+                                 Function(policy)
+                                     policy.AllowAnyHeader()
+                                     policy.AllowAnyMethod()
+                                     policy.SetIsOriginAllowed(Function(origin) True)
+                                     policy.AllowCredentials()
+                                 End Function)
+                         End Function)
+        
+        ' Sessioni e caching
+        services.AddDistributedMemoryCache()
+        services.AddSession(Function(options)
+                                options.IdleTimeout = TimeSpan.FromMinutes(20)
+                                options.Cookie.HttpOnly = True
+                                options.Cookie.IsEssential = True
+                            End Function)
+        
+        ' Servizi personalizzati
+        services.AddSingleton(Of MonitoringService)()
+        
+        ' Health checks per IIS
+        services.AddHealthChecks()
+    End Sub
+
+    Public Sub Configure(app As IApplicationBuilder, env As IWebHostEnvironment, logger As ILogger(Of Startup))
+        If env.IsDevelopment() Then
+            app.UseDeveloperExceptionPage()
+        Else
+            app.UseExceptionHandler("/Home/Error")
+            app.UseHsts() ' HTTP Strict Transport Security
+        End If
+
+        ' Middleware in ordine corretto
+        app.UseHttpsRedirection()
+        app.UseStaticFiles() ' Per file CSS/JS della dashboard
+        
+        app.UseRouting()
+        
+        ' CORS deve essere tra Routing e Authorization
+        app.UseCors("AllowAll")
+        
+        app.UseSession()
+        
+        app.UseAuthorization()
+        
+        ' Health checks endpoint
+        app.UseHealthChecks("/health")
+        
+        app.UseEndpoints(Sub(endpoints)
+                             ' Hub SignalR
+                             endpoints.MapHub(Of ConferenceHub)("/conferencehub")
+                             
+                             ' Dashboard MVC
+                             endpoints.MapControllerRoute(
+                                 name:="default",
+                                 pattern:="{controller=Dashboard}/{action=Index}/{id?}")
+                             
+                             ' Endpoint per monitoring
+                             endpoints.MapGet("/api/info", Async Function(context) As Task
+                                                Await context.Response.WriteAsJsonAsync(New With {
+                                                    .Server = "VideoConference Server",
+                                                    .Version = "1.0.0",
+                                                    .Time = DateTime.Now,
+                                                    .Machine = Environment.MachineName
+                                                })
+                                            End Function)
+                         End Sub)
+        
+        logger.LogInformation("✅ Server avviato correttamente")
+    End Sub
+End Class
+
+4. Aggiorna il file di progetto .vbproj
+xml
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>false</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <!-- Configurazioni per IIS -->
+    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
+    <AspNetCoreModuleName>AspNetCoreModuleV2</AspNetCoreModuleName>
+    
+    <!-- Per debugging remoto -->
+    <EnableDefaultContentItems>true</EnableDefaultContentItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pacchetti necessari -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
+  </ItemGroup>
+</Project>
+
+📋 ISTRUZIONI INSTALLAZIONE SU IIS
+Passo 1: Pubblica l'applicazione
+bash
+
+cd VideoConference.Server
+dotnet publish -c Release -o C:\VideoConference\Server
+
+Passo 2: Configura IIS
+
+    Apri IIS Manager
+
+    Crea un nuovo Application Pool:
+
+        Nome: VideoConferencePool
+
+        .NET CLR Version: No Managed Code (perché è un'app .NET Core)
+
+        Managed Pipeline Mode: Integrated
+
+    Crea un nuovo Sito Web:
+
+        Nome: VideoConference
+
+        Physical Path: C:\VideoConference\Server
+
+        Application Pool: VideoConferencePool
+
+        Porta: 5000 (o quella che preferisci)
+
+    Installa il modulo ASP.NET Core per IIS:
+
+        Scarica da: https://dotnet.microsoft.com/download/dotnet/8.0
+
+        Cerca "ASP.NET Core Runtime Hosting Bundle"
+
+Passo 3: Permessi
+
+Assicurati che l'Application Pool abbia permessi di scrittura su:
+
+    C:\VideoConference\Server\logs (se usi file logging)
+
+    Eventuali cartelle temporanee
+
+Passo 4: Test
+
+    Avvia il sito da IIS
+
+    Apri browser: http://localhost:5000/dashboard
+
+    Controlla gli event viewer per errori
+
+🔍 MONITORAGGIO
+
+Aggiungiamo un semplice endpoint per monitorare lo stato:
+vb
+
+' In Startup.vb, dentro Configure
+endpoints.MapGet("/api/status", Async Function(context) As Task
+    Dim monitoring = context.RequestServices.GetService(Of MonitoringService)()
+    
+    Await context.Response.WriteAsJsonAsync(New With {
+        .Status = "Running",
+        .Uptime = DateTime.Now - Program.StartTime,
+        .ActiveConnections = monitoring.GetActiveConnections(),
+        .ActiveRooms = monitoring.GetActiveRooms(),
+        .MemoryUsage = GC.GetTotalMemory(False) / 1024 / 1024, ' MB
+        .Threads = System.Diagnostics.Process.GetCurrentProcess().Threads.Count
+    })
+End Function)
+
+E in Program.vb aggiungi:
+vb
+
+Public Shared ReadOnly StartTime As DateTime = DateTime.Now
+
+✅ VANTAGGI DI QUESTA SOLUZIONE
+
+    Indipendenza dalla sessione utente: IIS gira come servizio Windows
+
+    Riavvio automatico: IIS riavvia l'app se crasha
+
+    Logging centralizzato: Windows Event Viewer + file logs
+
+    Gestione risorse: Pool di applicazioni con limiti di memoria/CPU
+
+    SSL facile: Puoi aggiungere certificati HTTPS da IIS
+
+    Scalabilità: Puoi avere più worker process
+
+Vuoi che procediamo con l'implementazione o hai domande su qualche passaggio?
+questo è il mio vbproj corrente, modificalo per l'opzione 2 IIS:
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>VideoConference.Server</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion></LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Models\**" />
+    <Content Remove="Models\**" />
+    <EmbeddedResource Remove="Models\**" />
+    <None Remove="Models\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Views\Dashboard\Index.vbhtml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.9" />
+    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.3.9" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VideoConference.Shared\VideoConference.Shared.csproj" />
+  </ItemGroup>
+  
+</Project>
+
+Ecco il tuo file .vbproj modificato per IIS Hosting con .NET 10.0:
+xml
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>VideoConference.Server</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion></LangVersion>
+    
+    <!-- Configurazioni per IIS -->
+    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
+    <AspNetCoreModuleName>AspNetCoreModuleV2</AspNetCoreModuleName>
+    <PreserveCompilationContext>true</PreserveCompilationContext>
+    <PreserveCompilationReferences>true</PreserveCompilationReferences>
+    
+    <!-- Abilita runtime compilation per le view (utile per sviluppo) -->
+    <RazorCompileOnBuild>true</RazorCompileOnBuild>
+    <RazorCompileOnPublish>true</RazorCompileOnPublish>
+    
+    <!-- Logging -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <!-- Assicura che web.config venga copiato in output -->
+  <ItemGroup>
+    <Content Update="web.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Models\**" />
+    <Content Remove="Models\**" />
+    <EmbeddedResource Remove="Models\**" />
+    <None Remove="Models\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Views\Dashboard\Index.vbhtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Aggiornati per .NET 10 -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.9" />
+    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.3.9" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    
+    <!-- Nuovi pacchetti necessari per IIS -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Hosting.WindowsServices" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VideoConference.Shared\VideoConference.Shared.csproj" />
+  </ItemGroup>
+  
+</Project>
+
+📄 Crea il file web.config nella root del progetto server:
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore" 
+             path="*" 
+             verb="*" 
+             modules="AspNetCoreModuleV2" 
+             resourceType="Unspecified" />
+      </handlers>
+      
+      <aspNetCore processPath="dotnet" 
+                  arguments=".\VideoConference.Server.dll" 
+                  stdoutLogEnabled="true" 
+                  stdoutLogFile=".\logs\stdout"
+                  hostingModel="inprocess">
+        
+        <environmentVariables>
+          <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
+          <environmentVariable name="ASPNETCORE_URLS" value="http://*:5000" />
+        </environmentVariables>
+        
+      </aspNetCore>
+      
+      <!-- Compressione static files -->
+      <urlCompression doStaticCompression="true" doDynamicCompression="true" />
+      
+      <!-- Security headers -->
+      <httpProtocol>
+        <customHeaders>
+          <add name="X-Content-Type-Options" value="nosniff" />
+          <add name="X-Frame-Options" value="SAMEORIGIN" />
+          <add name="X-Permitted-Cross-Domain-Policies" value="none" />
+        </customHeaders>
+      </httpProtocol>
+      
+    </system.webServer>
+  </location>
+</configuration>
+
+📁 Crea cartella logs (opzionale ma consigliata)
+
+Crea una cartella logs nella root del progetto server per i log di stdout di IIS.
+⚙️ Modifica Program.vb (per riferimento)
+
+Assicurati che il tuo Program.vb usi CreateDefaultBuilder() che già gestisce IIS automaticamente:
+vb
+
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.Extensions.Hosting
+Imports Microsoft.Extensions.Logging
+
+Module Program
+    Sub Main(args As String())
+        CreateHostBuilder(args).Build().Run()
+    End Sub
+
+    Public Function CreateHostBuilder(args As String()) As IHostBuilder
+        Return Host.CreateDefaultBuilder(args) _
+            .ConfigureWebHostDefaults(Sub(webBuilder)
+                                          webBuilder.UseStartup(Of Startup)()
+                                          webBuilder.UseIIS()  ' Abilita IIS
+                                          webBuilder.UseIISIntegration()  ' Integrazione IIS
+                                      End Sub) _
+            .ConfigureLogging(Sub(logging)
+                                  logging.ClearProviders()
+                                  logging.AddConsole()
+                                  logging.AddDebug()
+                                  logging.AddEventLog()  ' Log su Windows Event Viewer
+                              End Sub)
+    End Function
+End Module
+
+🚀 Istruzioni per pubblicare
+
+Dopo queste modifiche, pubblica con:
+bash
+
+dotnet publish -c Release -o C:\VideoConference\Server
+
+Poi configura IIS come ti ho spiegato nel messaggio precedente. La cartella C:\VideoConference\Server conterrà:
+
+    VideoConference.Server.dll (il tuo eseguibile)
+
+    web.config (configurazione IIS)
+
+    Tutte le DLL necessarie
+
+    La cartella logs (se creata)
+
+Hai notato che ho aggiornato i pacchetti Microsoft.Extensions.* alla versione 10.0.3 per allinearli al tuo target framework .NET 10.0. Funziona tutto?
+questo è il mio program.vb, adatta anche questo:
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.AspNetCore.Razor.Language
+Imports Microsoft.Extensions.DependencyInjection
+Imports VideoConference.Server.Hubs
+
+Module Program
+    Sub Main(args As String())
+        Dim builder = WebApplication.CreateBuilder(args)
+
+        ' Configurazione per usare la porta 5000 e 5001
+        builder.WebHost.UseUrls("http://192.168.1.4:5000;https://192.168.1.4:5001")
+
+        ' Aggiungi servizi MVC e monitoraggio
+        'builder.Services.AddControllersWithViews()
+        builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation()
+        builder.Services.AddSingleton(Of MonitoringService)()
+        builder.Services.AddMvc().AddRazorOptions(Sub(options)
+                                                      ' Aggiungi l'estensione .vbhtml alle location cercate
+                                                      options.ViewLocationFormats.Add("/Views/{1}/{0}.vbhtml")
+                                                      options.ViewLocationFormats.Add("/Views/Shared/{0}.vbhtml")
+                                                  End Sub)
+
+        ' Configurazione CORS
+        builder.Services.AddCors(
+            Sub(options)
+                options.AddPolicy("AllowAll",
+                    Sub(policy)
+                        policy.AllowAnyOrigin().
+                               AllowAnyMethod().
+                               AllowAnyHeader()
+                    End Sub)
+            End Sub)
+
+        ' Configurazione SignalR con tutte le opzioni
+        builder.Services.AddSignalR(Sub(options)
+                                        ' Limite dimensione messaggi (20 MB)
+                                        options.MaximumReceiveMessageSize = 20 * 1024 * 1024
+
+                                        ' Capacità buffer streaming
+                                        options.StreamBufferCapacity = 50
+
+                                        ' Timeout keep-alive
+                                        options.KeepAliveInterval = TimeSpan.FromSeconds(10)
+
+                                        ' Timeout client
+                                        options.ClientTimeoutInterval = TimeSpan.FromSeconds(120)
+
+                                        ' Abilita compressione (se disponibile)
+                                        options.EnableDetailedErrors = False
+
+                                    End Sub)
+
+        Dim app = builder.Build()
+
+        ' Configura pipeline HTTP
+        app.UseStaticFiles()  ' Per servire file CSS, JS, immagini
+        app.UseCors("AllowAll")
+        app.UseRouting()
+
+        app.UseAuthorization()
+
+        app.MapControllers()
+
+        ' Mappa gli endpoint
+        app.MapHub(Of ConferenceHub)("/conferencehub")
+
+        ' Route specifica per dashboard
+        app.MapControllerRoute(
+                                name:="Dashboard",
+                                pattern:="Dashboard/{action=Index}/{id?}",
+                                defaults:=New With {.controller = "Dashboard"}
+                            )
+
+        ' Endpoint di test
+        app.MapGet("/", Function() "Video Conference Server is running! Vai a /Dashboard per la console di monitoraggio")
+
+        app.MapGet("/test", Function() "Server funziona!")
+
+        app.MapGet("/routes", Function() As String
+                                  Dim routes = String.Join(", ", app.Urls)
+                                  Return $"URLs attive: {routes}"
+                              End Function)
+
+        ' Log di avvio
+        Dim separatore As String = New String("="c, 60)
+        Console.WriteLine(separatore)
+        Console.WriteLine("🎥 VideoConference Server")
+        Console.WriteLine(separatore)
+        Console.WriteLine($"🌐 Server avviato su:")
+        Console.WriteLine($"   - http://192.168.1.56:5000")
+        Console.WriteLine($"   - https://192.168.1.56:5001")
+        Console.WriteLine()
+        Console.WriteLine($"📊 Dashboard monitoraggio:")
+        Console.WriteLine($"   - http://192.168.1.56:5000/dashboard")
+        Console.WriteLine($"   - https://192.168.1.56:5001/dashboard")
+        Console.WriteLine()
+        Console.WriteLine($"🔌 SignalR Hub:")
+        Console.WriteLine($"   - http://192.168.1.56:5000/conferencehub")
+        Console.WriteLine($"   - https://192.168.1.56:5001/conferencehub")
+        Console.WriteLine(separatore)
+
+        app.Run()
+
+    End Sub
+
+End Module
+
+Ecco il tuo Program.vb adattato per IIS Hosting con .NET 10.0:
+vb
+
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.AspNetCore.Razor.Language
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+Imports Microsoft.Extensions.Logging
+Imports VideoConference.Server.Hubs
+Imports System.Net
+
+Module Program
+    Sub Main(args As String())
+        Try
+            Dim builder = WebApplication.CreateBuilder(args)
+
+            ' 🚀 CONFIGURAZIONE PER IIS
+            builder.WebHost.UseIIS()  ' Abilita IIS
+            builder.WebHost.UseIISIntegration()  ' Integrazione IIS
+            
+            ' Usa le URL da configurazione o environment variables
+            ' IIS gestirà automaticamente le URL, ma manteniamo queste per sviluppo
+            If Not builder.Environment.IsProduction() Then
+                builder.WebHost.UseUrls("http://192.168.1.4:5000;https://192.168.1.4:5001")
+            End If
+
+            ' Aggiungi servizi MVC e monitoraggio
+            builder.Services.AddControllersWithViews()
+                .AddRazorRuntimeCompilation()  ' Per sviluppo, in produzione puoi rimuovere
+                .AddRazorOptions(Sub(options)
+                                     ' Aggiungi l'estensione .vbhtml alle location cercate
+                                     options.ViewLocationFormats.Add("/Views/{1}/{0}.vbhtml")
+                                     options.ViewLocationFormats.Add("/Views/Shared/{0}.vbhtml")
+                                 End Sub)
+
+            ' Servizi personalizzati
+            builder.Services.AddSingleton(Of MonitoringService)()
+
+            ' Health checks per IIS (utile per monitoring)
+            builder.Services.AddHealthChecks()
+
+            ' Sessioni e caching (opzionale)
+            builder.Services.AddDistributedMemoryCache()
+            builder.Services.AddSession(Sub(options)
+                                             options.IdleTimeout = TimeSpan.FromMinutes(20)
+                                             options.Cookie.HttpOnly = True
+                                             options.Cookie.IsEssential = True
+                                         End Sub)
+
+            ' Configurazione CORS - Più restrittiva per produzione
+            builder.Services.AddCors(Sub(options)
+                                          options.AddPolicy("AllowSpecificOrigins",
+                                              Sub(policy)
+                                                  ' In produzione, specifica i domini consentiti
+                                                  If builder.Environment.IsDevelopment() Then
+                                                      policy.AllowAnyOrigin()
+                                                      policy.AllowAnyMethod()
+                                                      policy.AllowAnyHeader()
+                                                  Else
+                                                      policy.WithOrigins(
+                                                          "http://localhost:8080",
+                                                          "http://192.168.1.56:8080",
+                                                          "https://tuodominio.com"
+                                                      )
+                                                      policy.AllowAnyMethod()
+                                                      policy.AllowAnyHeader()
+                                                      policy.AllowCredentials()
+                                                  End If
+                                              End Sub)
+                                      End Sub)
+
+            ' Configurazione SignalR con tutte le opzioni
+            builder.Services.AddSignalR(Sub(options)
+                                            ' Limite dimensione messaggi (20 MB)
+                                            options.MaximumReceiveMessageSize = 20 * 1024 * 1024
+
+                                            ' Capacità buffer streaming
+                                            options.StreamBufferCapacity = 50
+
+                                            ' Timeout keep-alive
+                                            options.KeepAliveInterval = TimeSpan.FromSeconds(10)
+
+                                            ' Timeout client
+                                            options.ClientTimeoutInterval = TimeSpan.FromSeconds(120)
+
+                                            ' Abilita errori dettagliati solo in development
+                                            options.EnableDetailedErrors = builder.Environment.IsDevelopment()
+                                        End Sub)
+
+            ' Configura logging per IIS
+            builder.Logging.ClearProviders()
+            builder.Logging.AddConsole()
+            builder.Logging.AddDebug()
+            builder.Logging.AddEventLog(Sub(options)
+                                             options.SourceName = "VideoConference Server"
+                                             options.LogName = "Application"
+                                             options.MachineName = Environment.MachineName
+                                         End Sub)
+            
+            ' Aggiungi Application Insights se disponibile (opzionale)
+            ' builder.Services.AddApplicationInsightsTelemetry();
+
+            Dim app = builder.Build()
+
+            ' 🛡️ PIPELINE HTTP - Ordine corretto per IIS
+            If app.Environment.IsDevelopment() Then
+                app.UseDeveloperExceptionPage()
+            Else
+                app.UseExceptionHandler("/Home/Error")
+                app.UseHsts() ' HTTP Strict Transport Security
+            End If
+
+            ' Middleware in ordine corretto
+            app.UseHttpsRedirection()
+            app.UseStaticFiles()  ' Per servire file CSS, JS, immagini
+            app.UseRouting()
+            
+            app.UseCors("AllowSpecificOrigins")  ' CORS dopo routing
+            
+            app.UseSession()  ' Sessioni
+            
+            app.UseAuthorization()
+
+            ' Health checks endpoint (utile per IIS)
+            app.MapHealthChecks("/health")
+
+            ' Endpoint API e MVC
+            app.MapControllers()
+
+            ' Mappa gli endpoint SignalR
+            app.MapHub(Of ConferenceHub)("/conferencehub")
+
+            ' Route specifica per dashboard
+            app.MapControllerRoute(
+                name:="Dashboard",
+                pattern:="Dashboard/{action=Index}/{id?}",
+                defaults:=New With {.controller = "Dashboard"}
+            )
+
+            ' Endpoint di test/info
+            app.MapGet("/", Function() "Video Conference Server is running! Vai a /Dashboard per la console di monitoraggio")
+
+            app.MapGet("/test", Function() "Server funziona!")
+
+            app.MapGet("/routes", Function() As String
+                                      Dim routes = String.Join(", ", app.Urls)
+                                      Return $"URLs attive: {routes}"
+                                  End Function)
+
+            ' Endpoint info server (utile per monitoring)
+            app.MapGet("/api/info", Async Function(context) As Task
+                                        Await context.Response.WriteAsJsonAsync(New With {
+                                            .Server = "VideoConference Server",
+                                            .Version = "1.0.0",
+                                            .Environment = app.Environment.EnvironmentName,
+                                            .Time = DateTime.Now,
+                                            .Machine = Environment.MachineName,
+                                            .OSVersion = Environment.OSVersion.ToString(),
+                                            .Processors = Environment.ProcessorCount,
+                                            .MemoryMB = GC.GetTotalMemory(False) / 1024 / 1024
+                                        })
+                                    End Function)
+
+            ' Log di avvio (solo in console/development)
+            If Not app.Environment.IsProduction() Then
+                Dim separatore As String = New String("="c, 60)
+                Console.WriteLine(separatore)
+                Console.WriteLine("🎥 VideoConference Server")
+                Console.WriteLine(separatore)
+                Console.WriteLine($"🌍 Environment: {app.Environment.EnvironmentName}")
+                Console.WriteLine($"💻 Machine Name: {Environment.MachineName}")
+                Console.WriteLine($"🕐 Avviato il: {DateTime.Now}")
+                Console.WriteLine()
+                
+                ' Mostra URL solo in development, in produzione le gestisce IIS
+                Console.WriteLine($"🌐 URL in ascolto:")
+                For Each url In app.Urls
+                    Console.WriteLine($"   - {url}")
+                Next
+                
+                Console.WriteLine()
+                Console.WriteLine($"📊 Dashboard monitoraggio: /dashboard")
+                Console.WriteLine($"🔌 SignalR Hub: /conferencehub")
+                Console.WriteLine($"❤️ Health Check: /health")
+                Console.WriteLine($"ℹ️ Info API: /api/info")
+                Console.WriteLine(separatore)
+            End If
+
+            ' Avvia l'applicazione
+            app.Run()
+
+        Catch ex As Exception
+            ' Log errori fatali
+            Console.WriteLine($"❌ ERRORE FATALE: {ex.Message}")
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}")
+            
+            ' Scrivi su file di errore
+            Try
+                Dim errorLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error_log.txt")
+                File.WriteAllText(errorLog,
+                    $"Data: {DateTime.Now}{Environment.NewLine}" &
+                    $"Errore: {ex.Message}{Environment.NewLine}" &
+                    $"Stack: {ex.StackTrace}{Environment.NewLine}")
+            Catch
+                ' Ignora errori di scrittura log
+            End Try
+            
+            ' In IIS, lascia che il modulo gestisca l'errore
+            Throw
+        End Try
+    End Sub
+End Module
+
+📝 RIEPILOGO MODIFICHE PRINCIPALI:
+
+    Aggiunte configurazioni IIS:
+
+        UseIIS() e UseIISIntegration()
+
+        Logging su Event Viewer
+
+        Health checks
+
+    Separazione Development/Production:
+
+        URL configurate solo in development
+
+        CORS più restrittivo in produzione
+
+        Errori dettagliati solo in development
+
+    Logging migliorato:
+
+        Console + Debug + EventLog
+
+        SourceName personalizzato per Event Viewer
+
+    Endpoint aggiuntivi:
+
+        /health per IIS health checks
+
+        /api/info per informazioni server
+
+    Gestione errori:
+
+        Try/Catch principale
+
+        Log errori su file
+
+🔍 COME VERIFICARE IL FUNZIONAMENTO:
+
+    In sviluppo: funziona come prima su console
+
+    In produzione: IIS gestisce tutto, puoi monitorare da:
+
+        Windows Event Viewer → Application Log
+
+        IIS Manager → Worker Process
+
+        /health endpoint
+
+        /api/info endpoint
+
+Vuoi che aggiustiamo qualcosa o procediamo con la configurazione IIS?
+in program.vb verifica :
+                Console.WriteLine(separatore)
+Errore:
+'WriteLine' is not a member of 'Microsoft.Extensions.Logging.Console'.
+
+Hai ragione! C'è un conflitto di namespace. Il problema è che Console.WriteLine sta cercando di usare Microsoft.Extensions.Logging.Console invece di System.Console.
+
+Ecco la versione corretta con l'ambiguità risolta:
+vb
+
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.AspNetCore.Razor.Language
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+Imports Microsoft.Extensions.Logging
+Imports VideoConference.Server.Hubs
+Imports System.Net
+
+' Alias per System.Console per evitare ambiguità
+Imports Console = System.Console
+
+Module Program
+    Sub Main(args As String())
+        Try
+            Dim builder = WebApplication.CreateBuilder(args)
+
+            ' 🚀 CONFIGURAZIONE PER IIS
+            builder.WebHost.UseIIS()  ' Abilita IIS
+            builder.WebHost.UseIISIntegration()  ' Integrazione IIS
+            
+            ' Usa le URL da configurazione o environment variables
+            ' IIS gestirà automaticamente le URL, ma manteniamo queste per sviluppo
+            If Not builder.Environment.IsProduction() Then
+                builder.WebHost.UseUrls("http://192.168.1.4:5000;https://192.168.1.4:5001")
+            End If
+
+            ' Aggiungi servizi MVC e monitoraggio
+            builder.Services.AddControllersWithViews()
+                .AddRazorRuntimeCompilation()  ' Per sviluppo, in produzione puoi rimuovere
+                .AddRazorOptions(Sub(options)
+                                     ' Aggiungi l'estensione .vbhtml alle location cercate
+                                     options.ViewLocationFormats.Add("/Views/{1}/{0}.vbhtml")
+                                     options.ViewLocationFormats.Add("/Views/Shared/{0}.vbhtml")
+                                 End Sub)
+
+            ' Servizi personalizzati
+            builder.Services.AddSingleton(Of MonitoringService)()
+
+            ' Health checks per IIS (utile per monitoring)
+            builder.Services.AddHealthChecks()
+
+            ' Sessioni e caching (opzionale)
+            builder.Services.AddDistributedMemoryCache()
+            builder.Services.AddSession(Sub(options)
+                                             options.IdleTimeout = TimeSpan.FromMinutes(20)
+                                             options.Cookie.HttpOnly = True
+                                             options.Cookie.IsEssential = True
+                                         End Sub)
+
+            ' Configurazione CORS - Più restrittiva per produzione
+            builder.Services.AddCors(Sub(options)
+                                          options.AddPolicy("AllowSpecificOrigins",
+                                              Sub(policy)
+                                                  ' In produzione, specifica i domini consentiti
+                                                  If builder.Environment.IsDevelopment() Then
+                                                      policy.AllowAnyOrigin()
+                                                      policy.AllowAnyMethod()
+                                                      policy.AllowAnyHeader()
+                                                  Else
+                                                      policy.WithOrigins(
+                                                          "http://localhost:8080",
+                                                          "http://192.168.1.56:8080",
+                                                          "https://tuodominio.com"
+                                                      )
+                                                      policy.AllowAnyMethod()
+                                                      policy.AllowAnyHeader()
+                                                      policy.AllowCredentials()
+                                                  End If
+                                              End Sub)
+                                      End Sub)
+
+            ' Configurazione SignalR con tutte le opzioni
+            builder.Services.AddSignalR(Sub(options)
+                                            ' Limite dimensione messaggi (20 MB)
+                                            options.MaximumReceiveMessageSize = 20 * 1024 * 1024
+
+                                            ' Capacità buffer streaming
+                                            options.StreamBufferCapacity = 50
+
+                                            ' Timeout keep-alive
+                                            options.KeepAliveInterval = TimeSpan.FromSeconds(10)
+
+                                            ' Timeout client
+                                            options.ClientTimeoutInterval = TimeSpan.FromSeconds(120)
+
+                                            ' Abilita errori dettagliati solo in development
+                                            options.EnableDetailedErrors = builder.Environment.IsDevelopment()
+                                        End Sub)
+
+            ' Configura logging per IIS
+            builder.Logging.ClearProviders()
+            builder.Logging.AddConsole()
+            builder.Logging.AddDebug()
+            builder.Logging.AddEventLog(Sub(options)
+                                             options.SourceName = "VideoConference Server"
+                                             options.LogName = "Application"
+                                             options.MachineName = Environment.MachineName
+                                         End Sub)
+            
+            ' Aggiungi Application Insights se disponibile (opzionale)
+            ' builder.Services.AddApplicationInsightsTelemetry();
+
+            Dim app = builder.Build()
+
+            ' 🛡️ PIPELINE HTTP - Ordine corretto per IIS
+            If app.Environment.IsDevelopment() Then
+                app.UseDeveloperExceptionPage()
+            Else
+                app.UseExceptionHandler("/Home/Error")
+                app.UseHsts() ' HTTP Strict Transport Security
+            End If
+
+            ' Middleware in ordine corretto
+            app.UseHttpsRedirection()
+            app.UseStaticFiles()  ' Per servire file CSS, JS, immagini
+            app.UseRouting()
+            
+            app.UseCors("AllowSpecificOrigins")  ' CORS dopo routing
+            
+            app.UseSession()  ' Sessioni
+            
+            app.UseAuthorization()
+
+            ' Health checks endpoint (utile per IIS)
+            app.MapHealthChecks("/health")
+
+            ' Endpoint API e MVC
+            app.MapControllers()
+
+            ' Mappa gli endpoint SignalR
+            app.MapHub(Of ConferenceHub)("/conferencehub")
+
+            ' Route specifica per dashboard
+            app.MapControllerRoute(
+                name:="Dashboard",
+                pattern:="Dashboard/{action=Index}/{id?}",
+                defaults:=New With {.controller = "Dashboard"}
+            )
+
+            ' Endpoint di test/info
+            app.MapGet("/", Function() "Video Conference Server is running! Vai a /Dashboard per la console di monitoraggio")
+
+            app.MapGet("/test", Function() "Server funziona!")
+
+            app.MapGet("/routes", Function() As String
+                                      Dim routes = String.Join(", ", app.Urls)
+                                      Return $"URLs attive: {routes}"
+                                  End Function)
+
+            ' Endpoint info server (utile per monitoring)
+            app.MapGet("/api/info", Async Function(context) As Task
+                                        Await context.Response.WriteAsJsonAsync(New With {
+                                            .Server = "VideoConference Server",
+                                            .Version = "1.0.0",
+                                            .Environment = app.Environment.EnvironmentName,
+                                            .Time = DateTime.Now,
+                                            .Machine = Environment.MachineName,
+                                            .OSVersion = Environment.OSVersion.ToString(),
+                                            .Processors = Environment.ProcessorCount,
+                                            .MemoryMB = GC.GetTotalMemory(False) / 1024 / 1024
+                                        })
+                                    End Function)
+
+            ' Log di avvio (solo in console/development)
+            If Not app.Environment.IsProduction() Then
+                Dim separatore As String = New String("="c, 60)
+                Console.WriteLine(separatore)  ' Ora usa System.Console grazie all'alias
+                Console.WriteLine("🎥 VideoConference Server")
+                Console.WriteLine(separatore)
+                Console.WriteLine($"🌍 Environment: {app.Environment.EnvironmentName}")
+                Console.WriteLine($"💻 Machine Name: {Environment.MachineName}")
+                Console.WriteLine($"🕐 Avviato il: {DateTime.Now}")
+                Console.WriteLine()
+                
+                ' Mostra URL solo in development, in produzione le gestisce IIS
+                Console.WriteLine($"🌐 URL in ascolto:")
+                For Each url In app.Urls
+                    Console.WriteLine($"   - {url}")
+                Next
+                
+                Console.WriteLine()
+                Console.WriteLine($"📊 Dashboard monitoraggio: /dashboard")
+                Console.WriteLine($"🔌 SignalR Hub: /conferencehub")
+                Console.WriteLine($"❤️ Health Check: /health")
+                Console.WriteLine($"ℹ️ Info API: /api/info")
+                Console.WriteLine(separatore)
+            End If
+
+            ' Avvia l'applicazione
+            app.Run()
+
+        Catch ex As Exception
+            ' Log errori fatali
+            Console.WriteLine($"❌ ERRORE FATALE: {ex.Message}")
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}")
+            
+            ' Scrivi su file di errore
+            Try
+                Dim errorLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error_log.txt")
+                File.WriteAllText(errorLog,
+                    $"Data: {DateTime.Now}{Environment.NewLine}" &
+                    $"Errore: {ex.Message}{Environment.NewLine}" &
+                    $"Stack: {ex.StackTrace}{Environment.NewLine}")
+            Catch
+                ' Ignora errori di scrittura log
+            End Try
+            
+            ' In IIS, lascia che il modulo gestisca l'errore
+            Throw
+        End Try
+    End Sub
+End Module
+
+📌 La soluzione chiave è questa riga all'inizio:
+vb
+
+' Alias per System.Console per evitare ambiguità
+Imports Console = System.Console
+
+Così quando scrivi Console.WriteLine, VB.NET sa che intendi System.Console.WriteLine e non il tipo Microsoft.Extensions.Logging.Console.
+
+In alternativa, se non vuoi usare l'alias, puoi sempre usare System.Console.WriteLine() completamente qualificato, ma l'alias è più pulito.
+
+Tutto a posto ora? 😊
+in startup.vb ho aggiunto:
+Imports VideoConference.Server.Hubs
+Fammi vedere come creare il sito su IIS.
+
+Perfetto! Ti guido passo passo nella creazione del sito su IIS. Useremo le tue impostazioni con IP 192.168.1.56.
+📋 PREREQUISITI
+
+Prima di iniziare, assicurati di avere:
+
+    IIS installato con:
+
+        Modulo ASP.NET Core (Hosting Bundle)
+
+        Windows Authentication (se serve)
+
+    Pubblica l'applicazione:
+
+bash
+
+cd VideoConference.Server
+dotnet publish -c Release -o C:\VideoConference\Server
+
+🚀 CREAZIONE SITO WEB SU IIS
+Passo 1: Apri IIS Manager
+
+    Premi Windows + R, digita inetmgr e premi Invio
+
+Passo 2: Crea Application Pool
+
+    Nella finestra di IIS, clicca su Application Pools
+
+    Nel pannello di destra, clicca Add Application Pool...
+
+    Configura:
+
+        Name: VideoConferencePool
+
+        .NET CLR version: No Managed Code (importante!)
+
+        Managed pipeline mode: Integrated
+
+    Clicca OK
+
+    Configura l'Application Pool:
+
+        Seleziona VideoConferencePool
+
+        Clicca su Advanced Settings nel pannello destro
+
+        Imposta:
+
+            Start Mode: AlwaysRunning
+
+            Idle Time-out (minutes): 0 (mai)
+
+            Maximum Worker Processes: 1 (per ora)
+
+Passo 3: Crea il Sito Web
+
+    In IIS, clicca con destro su Sites → Add Website
+
+    Configura:
+    text
+
+    Site name: VideoConference
+    Application pool: VideoConferencePool
+    Physical path: C:\VideoConference\Server
+
+    Binding (usando il tuo IP):
+    text
+
+    Type: http
+    IP address: 192.168.1.56
+    Port: 5000
+    Host name: (lascia vuoto)
+
+    Clicca OK
+
+Passo 4: Aggiungi binding HTTPS (opzionale ma consigliato)
+
+    Seleziona il sito VideoConference
+
+    Nel pannello destro, clicca Bindings...
+
+    Clicca Add
+    text
+
+    Type: https
+    IP address: 192.168.1.56
+    Port: 5001
+    SSL certificate: Scegli o crea un certificato
+
+    Clicca OK
+
+Passo 5: Configura Permessi Cartella
+
+    Apri File Explorer e vai a C:\VideoConference\Server
+
+    Clicca destro sulla cartella → Properties → Security tab
+
+    Clicca Edit → Add
+
+    Aggiungi:
+
+        IIS AppPool\VideoConferencePool
+
+        Dai permessi Read & Execute, List folder contents, Read
+
+    Clicca OK
+
+Passo 6: Configura URL Riservate (se necessario)
+
+Se vuoi che il sito risponda su tutte le interfacce:
+
+    Apri Command Prompt come Administrator
+
+    Esegui:
+
+bash
+
+netsh http add urlacl url=http://192.168.1.56:5000/ user=everyone
+netsh http add urlacl url=https://192.168.1.56:5001/ user=everyone
+
+Passo 7: Abilita firewall (se necessario)
+bash
+
+netsh advfirewall firewall add rule name="VideoConference 5000" dir=in action=allow protocol=TCP localport=5000
+netsh advfirewall firewall add rule name="VideoConference 5001" dir=in action=allow protocol=TCP localport=5001
+
+Passo 8: Test
+
+    In IIS, seleziona il sito VideoConference
+
+    Nel pannello destro, clicca *Browse :5000 (http)
+
+    Dovresti vedere: "Video Conference Server is running!..."
+
+Oppure dal browser:
+
+    http://192.168.1.56:5000
+
+    http://192.168.1.56:5000/dashboard
+
+    https://192.168.1.56:5001 (se configurato)
+
+🔧 CONFIGURAZIONI AGGIUNTIVE
+Web.config avanzato (assicurati di averlo)
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore" 
+             path="*" 
+             verb="*" 
+             modules="AspNetCoreModuleV2" 
+             resourceType="Unspecified" />
+      </handlers>
+      
+      <aspNetCore processPath="dotnet" 
+                  arguments=".\VideoConference.Server.dll" 
+                  stdoutLogEnabled="true" 
+                  stdoutLogFile=".\logs\stdout"
+                  hostingModel="inprocess">
+        
+        <environmentVariables>
+          <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
+          <environmentVariable name="ASPNETCORE_URLS" value="http://*:5000;https://*:5001" />
+        </environmentVariables>
+        
+      </aspNetCore>
+      
+      <!-- URL Compression -->
+      <urlCompression doStaticCompression="true" doDynamicCompression="true" />
+      
+      <!-- Security Headers -->
+      <httpProtocol>
+        <customHeaders>
+          <add name="X-Content-Type-Options" value="nosniff" />
+          <add name="X-Frame-Options" value="SAMEORIGIN" />
+        </customHeaders>
+      </httpProtocol>
+      
+    </system.webServer>
+  </location>
+</configuration>
+
+Crea cartella logs
+bash
+
+mkdir C:\VideoConference\Server\logs
+
+📊 MONITORAGGIO
+Verifica che funzioni:
+
+    Application Pool dovrebbe mostrare stato Started
+
+    Sito dovrebbe mostrare stato Started
+
+    Prova ad accedere: http://192.168.1.56:5000/api/info
+
+    Controlla Windows Event Viewer per errori
+
+Logs IIS:
+
+    Logs IIS: C:\inetpub\logs\LogFiles\W3SVC*\
+
+    Logs app: C:\VideoConference\Server\logs\stdout_*.log
+
+🐛 RISOLUZIONE PROBLEMI COMUNI
+Errore 502.5 - Processo terminato
+
+    Controlla che l'Application Pool usi "No Managed Code"
+
+    Verifica che il percorso della DLL sia corretto
+
+    Controlla i logs in \logs\stdout_*.log
+
+Errore 403.14 - Directory listing negato
+
+    Assicurati di avere il middleware UseStaticFiles() in Program.vb
+
+    Verifica che web.config sia nella cartella pubblicata
+
+Porta già in uso
+bash
+
+netstat -ano | findstr :5000
+taskkill /PID [PID] /F
+
+✅ VERIFICA FINALE
+
+Dopo aver configurato tutto, apri il browser e testa:
+
+    Home: http://192.168.1.56:5000/
+
+    Dashboard: http://192.168.1.56:5000/dashboard
+
+    API Info: http://192.168.1.56:5000/api/info
+
+    SignalR Hub: http://192.168.1.56:5000/conferencehub (dovrebbe dare 400 - è normale)
+
+Tutto funziona? Se hai errori, postali e ti aiuto a risolverli! 🎯
+questo path:
+Physical path: C:\VideoConference\Server te lo sei inventato, il vero path deve puntare alla "bin"?
+
+Hai perfettamente ragione! Scusa per l'errore! 🙏
+
+Il Physical path in IIS deve puntare alla cartella dove hai pubblicato l'applicazione, non alla cartella bin del progetto di sviluppo.
+
+Ecco le opzioni corrette:
+📁 OPZIONE 1: Cartella di PUBLISH (RACCOMANDATA)
+
+Se hai già fatto il publish:
+bash
+
+# Il publish creerà una cartella con tutti i file necessari
+dotnet publish -c Release -o C:\VideoConference\Server
+
+Physical path in IIS: C:\VideoConference\Server
+
+Questa cartella conterrà:
+
+    VideoConference.Server.dll (il tuo eseguibile)
+
+    web.config (configurazione IIS)
+
+    Tutte le DLL delle dipendenze
+
+    Le cartelle Views, wwwroot, ecc.
+
+📁 OPZIONE 2: Cartella di OUTPUT (se usi dotnet run)
+
+Se stai testando in sviluppo e vuoi puntare direttamente all'output:
+bash
+
+# L'output di compilazione è in:
+# VideoConference.Server\bin\Release\net10.0\publish\
+
+Physical path in IIS:
+C:\TuoProgetto\VideoConference.Server\bin\Release\net10.0\publish\
+📁 OPZIONE 3: Cartella del progetto (SOLO PER DEBUG - SCONSIGLIATO)
+
+Teoricamente potresti puntare alla root del progetto, ma NON funzionerà perché mancano tutte le DLL compilate e il web.config.
+✅ PROCEDURA CORRETTA
+Passo 1: Pubblica l'applicazione
+bash
+
+cd C:\TuoProgetto\VideoConference.Server
+dotnet publish -c Release -o C:\VideoConference\Server
+
+Passo 2: Verifica il contenuto
+
+La cartella C:\VideoConference\Server dovrebbe contenere:
+text
+
+C:\VideoConference\Server\
+├── VideoConference.Server.dll
+├── VideoConference.Server.exe
+├── VideoConference.Server.runtimeconfig.json
+├── VideoConference.Server.deps.json
+├── web.config
+├── Views\
+│   └── Dashboard\
+│       └── Index.vbhtml
+├── wwwroot\ (se esiste)
+└── [tante DLL...]
+
+Passo 3: Configura IIS
+
+    Physical path: C:\VideoConference\Server
+
+🚫 COSA NON FARE
+
+❌ NON puntare a:
+
+    C:\TuoProgetto\VideoConference.Server\ (root progetto)
+
+    C:\TuoProgetto\VideoConference.Server\bin\ (bin grezzo)
+
+    C:\TuoProgetto\VideoConference.Server\bin\Debug\net10.0\ (debug output)
+
+📝 ESEMPIO COMPLETO
+
+Se il tuo progetto è in:
+text
+
+D:\Projects\VideoConference\VideoConference.Server\
+
+Fai:
+bash
+
+cd D:\Projects\VideoConference\VideoConference.Server
+dotnet publish -c Release -o D:\VideoConference\Server
+
+Poi in IIS:
+
+    Physical path: D:\VideoConference\Server
+
+Scusa ancora per la confusione! Ha senso ora? 😊
+ok, pubblicato nella cartella che indichi, con http://192.168.1.56:5000/ esce questo errore:
+
+Errore HTTP 500.19 - Internal Server Error
+Impossibile accedere alla pagina richiesta perché i dati di configurazione per la pagina non sono validi.
+Informazioni dettagliate sull'errore:
+Modulo	   IIS Web Core
+Notifica	   Sconosciuto
+Gestore	   Non ancora determinato
+Codice errore	   0x8007000d
+Errore di configurazione	   
+File di configurazione	   \\?\C:\VideoConference\Server\web.config
+
+L'errore 0x8007000d indica che il file web.config è malformato o contiene errori di sintassi. È un errore comune con IIS quando il formato XML non è valido.
+🔍 VERIFICHIAMO IL WEB.CONFIG
+
+Apri il file C:\VideoConference\Server\web.config con un editor di testo (es. Notepad) e controlla che sia corretto.
+Ecco il web.config corretto per ASP.NET Core:
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore" 
+             path="*" 
+             verb="*" 
+             modules="AspNetCoreModuleV2" 
+             resourceType="Unspecified" />
+      </handlers>
+      <aspNetCore processPath="dotnet" 
+                  arguments=".\VideoConference.Server.dll" 
+                  stdoutLogEnabled="false" 
+                  stdoutLogFile=".\logs\stdout" 
+                  hostingModel="inprocess" />
+    </system.webServer>
+  </location>
+</configuration>
+
+⚠️ PROBLEMI COMUNI E SOLUZIONI
+Problema 1: Caratteri speciali o BOM
+
+A volte il file viene salvato con encoding sbagliato.
+
+Soluzione:
+
+    Apri il file con Notepad++
+
+    Vai su Encoding → Converti in UTF-8 senza BOM
+
+    Salva
+
+Problema 2: Sintassi XML errata
+
+Controlla che:
+
+    Tutti i tag siano chiusi correttamente
+
+    Non ci siano caratteri & non escapati (usa &amp;)
+
+    Le virgolette siano doppie " non singole
+
+Problema 3: Permessi sul file
+
+Assicurati che l'Application Pool abbia accesso al file.
+
+Soluzione:
+powershell
+
+# Apri PowerShell come amministratore
+icacls "C:\VideoConference\Server\web.config" /grant "IIS AppPool\VideoConferencePool":R
+
+🛠️ TEST RAPIDO
+1. Crea un web.config minimale per test
+
+Prova con questo contenuto base:
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+    </handlers>
+    <aspNetCore processPath="dotnet" arguments=".\VideoConference.Server.dll" stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
+  </system.webServer>
+</configuration>
+
+2. Verifica la sintassi XML
+
+Puoi usare un validatore online o:
+
+    Apri il file in Visual Studio
+
+    Se non ci sono sottolineature rosse, la sintassi è OK
+
+3. Controlla i logs IIS
+
+Apri Event Viewer:
+
+    Windows Logs → System
+
+    Cerca errori recenti di IIS
+
+📋 SE NON FUNZIONA, PROVA QUESTI PASSI
+Passo 1: Rinomina web.config
+bash
+
+ren C:\VideoConference\Server\web.config web.config.bak
+
+Passo 2: Crea un nuovo web.config da zero
+
+Crea un nuovo file web.config con questo contenuto BASE (senza fronzoli):
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+    </handlers>
+    <aspNetCore processPath=".\VideoConference.Server.exe" arguments="" stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
+  </system.webServer>
+</configuration>
+
+Nota: Ho cambiato processPath da dotnet a .\VideoConference.Server.exe - a volte funziona meglio.
+Passo 3: Verifica che l'AspNetCoreModuleV2 sia installato
+powershell
+
+# In PowerShell
+Get-ChildItem -Path IIS:\AppPools
+
+Dovresti vedere il modulo. Se non è installato:
+
+    Scarica e installa .NET Core Hosting Bundle
+
+Passo 4: Controlla i permessi della cartella
+powershell
+
+icacls "C:\VideoConference\Server" /grant "IIS AppPool\VideoConferencePool:(RX)"
+icacls "C:\VideoConference\Server" /grant "IIS_IUSRS:(RX)"
+
+🔧 SE ANCORA NON FUNZIONA
+
+Prova a disabilitare temporaneamente il web.config e usa le impostazioni predefinite:
+
+    Rinomina web.config in web.config.old
+
+    Riavvia IIS:
+    bash
+
+    iisreset
+
+    Prova ad accedere - dovresti vedere l'errore 500.19 scomparire (ma ne apparirà un altro 500.30 probabilmente)
+
+Fammi sapere cosa vedi dopo questi test! 📊
+questo è il mio web.config:
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore"
+             path="*"
+             verb="*"
+             modules="AspNetCoreModuleV2"
+             resourceType="Unspecified" />
+      </handlers>
+
+      <aspNetCore processPath="dotnet"
+                  arguments=".\VideoConference.Server.dll"
+                  stdoutLogEnabled="true"
+                  stdoutLogFile=".\logs\stdout"
+                  hostingModel="inprocess">
+
+        <environmentVariables>
+          <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
+          <environmentVariable name="ASPNETCORE_URLS" value="http://*:5000" />
+        </environmentVariables>
+
+      </aspNetCore>
+
+      <!-- Compressione static files -->
+      <urlCompression doStaticCompression="true" doDynamicCompression="true" />
+
+      <!-- Security headers -->
+      <httpProtocol>
+        <customHeaders>
+          <add name="X-Content-Type-Options" value="nosniff" />
+          <add name="X-Frame-Options" value="SAMEORIGIN" />
+          <add name="X-Permitted-Cross-Domain-Policies" value="none" />
+        </customHeaders>
+      </httpProtocol>
+
+    </system.webServer>
+  </location>
+</configuration>
+
+Il tuo web.config sembra sintatticamente corretto, quindi il problema 0x8007000d potrebbe essere dovuto a:
+🔍 PROBLEMI POSSIBILI
+1. Il file non è salvato con encoding corretto
+
+IIS è molto sensibile all'encoding del file.
+
+Soluzione:
+
+    Apri il file con Notepad++
+
+    Vai su Encoding → Converti in UTF-8 senza BOM
+
+    Salva e riprova
+
+2. Module AspNetCoreModuleV2 non installato
+
+Verifica che il modulo ASP.NET Core sia installato.
+
+Controllo:
+
+    Apri IIS Manager
+
+    Clicca sul server principale (es. DESKTOP-XXX)
+
+    Doppio clic su Modules
+
+    Cerca AspNetCoreModuleV2 nella lista
+
+Se non c'è, scarica e installa:
+
+    .NET 8.0 Hosting Bundle
+
+3. Application Pool sbagliato
+
+Assicurati che l'Application Pool sia configurato correttamente:
+
+    In IIS, seleziona Application Pools
+
+    Clicca su VideoConferencePool
+
+    Advanced Settings:
+
+        .NET CLR Version: No Managed Code
+
+        Enable 32-Bit Applications: False (se sei su 64-bit)
+
+        Managed Pipeline Mode: Integrated
+
+4. Prova con web.config minimale
+
+Per test, sostituisci il contenuto con questo web.config minimale:
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+    </handlers>
+    <aspNetCore processPath="dotnet" arguments=".\VideoConference.Server.dll" stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
+  </system.webServer>
+</configuration>
+
+5. Verifica permessi della cartella
+powershell
+
+# Apri PowerShell come amministratore
+
+# Dai permessi all'Application Pool
+icacls "C:\VideoConference\Server" /grant "IIS AppPool\VideoConferencePool:(OI)(CI)RX"
+icacls "C:\VideoConference\Server" /grant "IIS_IUSRS:(OI)(CI)RX"
+
+# Permessi specifici per il file web.config
+icacls "C:\VideoConference\Server\web.config" /grant "IIS AppPool\VideoConferencePool:R"
+
+6. Controlla Event Viewer per errori specifici
+
+    Apri Event Viewer
+
+    Vai su Windows Logs → System
+
+    Filtra per origine: Microsoft-Windows-IIS-Configuration
+
+    Cerca errori recenti
+
+7. Verifica che il file esista e sia accessibile
+powershell
+
+# Verifica che il file esista
+Test-Path "C:\VideoConference\Server\web.config"
+
+# Verifica che la DLL esista
+Test-Path "C:\VideoConference\Server\VideoConference.Server.dll"
+
+8. Riavvia IIS completamente
+bash
+
+# Apri Command Prompt come amministratore
+iisreset /stop
+iisreset /start
+
+🚀 SOLUZIONE RAPIDA - PROVA QUESTA
+
+Fai questi passi in ordine:
+Passo 1: Ferma IIS
+bash
+
+iisreset /stop
+
+Passo 2: Rinomina il web.config corrente
+bash
+
+ren C:\VideoConference\Server\web.config web.config.old
+
+Passo 3: Crea un nuovo web.config con encoding corretto
+
+Crea un nuovo file usando PowerShell:
+powershell
+
+# PowerShell
+$config = @'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+    </handlers>
+    <aspNetCore processPath="dotnet" arguments=".\VideoConference.Server.dll" stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
+  </system.webServer>
+</configuration>
+'@
+
+$config | Out-File -FilePath "C:\VideoConference\Server\web.config" -Encoding utf8 -Force
+
+Passo 4: Riavvia IIS
+bash
+
+iisreset /start
+
+Passo 5: Testa l'accesso
+
+http://192.168.1.56:5000/
+📊 Se ancora non funziona, controlla:
+
+    Versione di .NET installata:
+
+bash
+
+dotnet --info
+
+    Log specifici di IIS:
+
+        C:\inetpub\logs\LogFiles\W3SVC1\
+
+        C:\VideoConference\Server\logs\stdout_*.log (se creati)
+
+    Prova con l'eseguibile diretto:
+    Modifica il web.config per usare l'exe invece di dotnet:
+
+xml
+
+<aspNetCore processPath=".\VideoConference.Server.exe" arguments="" ... />
+
+Fammi sapere cosa succede dopo questi test! 👍
+invece di .NET 8.0 Hosting Bundle per .Net10?
+Letti 10 pagine web
+
+Sì, hai perfettamente ragione! Per .NET 10 esiste il .NET 10 Hosting Bundle specifico. Ecco tutte le informazioni:
+📥 DOWNLOAD .NET 10 HOSTING BUNDLE
+Link ufficiale:
+text
+
+https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+
+Cosa cercare nella pagina:
+
+Nella sezione "Run apps - Runtime" trovi:
+
+    Hosting Bundle (Windows) - è quello che ti serve per IIS 
+
+📦 COSA INSTALLA IL BUNDLE
+
+Il .NET 10 Hosting Bundle include :
+
+    .NET 10 Runtime (per eseguire le app)
+
+    ASP.NET Core Module (ANCM) v2 - il modulo che permette a IIS di comunicare con la tua app
+
+    ASP.NET Core 10 Shared Framework
+
+🔧 INSTALLAZIONE PASSO PASSO
+Passo 1: Scarica il bundle
+
+    Vai al link sopra
+
+    Clicca su "Hosting Bundle" nella riga di .NET 10.0
+
+    File: dotnet-hosting-10.0.x-win.exe
+
+Passo 2: Installa
+
+    Chiudi tutte le finestre di IIS Manager (importante!)
+
+    Esegui l'installer come amministratore
+
+    Segui la procedura guidata
+
+Passo 3: Riavvia IIS (obbligatorio!)
+
+Dopo l'installazione, apri Command Prompt come amministratore e esegui :
+bash
+
+net stop was /y
+net start w3svc
+
+Oppure fai un semplice iisreset
+✅ VERIFICA INSTALLAZIONE
+Metodo 1: Controlla i runtime installati
+bash
+
+dotnet --list-runtimes
+
+Dovresti vedere:
+text
+
+Microsoft.AspNetCore.App 10.0.x [percorso]
+Microsoft.NETCore.App 10.0.x [percorso]
+
+Metodo 2: Controlla il modulo IIS
+
+    Apri IIS Manager
+
+    Clicca sul server principale
+
+    Moduli (Modules)
+
+    Cerca AspNetCoreModuleV2 
+
+Metodo 3: Versione del modulo
+
+Vai a %PROGRAMFILES%\IIS\Asp.Net Core Module\V2\ e controlla le proprietà di aspnetcorev2.dll
+⚠️ NOTE IMPORTANTI
+
+    Se IIS era già installato prima, l'installer configurerà tutto automaticamente
+
+    Se installi prima il bundle e poi IIS, devi riparare l'installazione del bundle
+
+    Application Pool deve essere configurato con ".NET CLR version = No Managed Code"
+
+    Dopo l'installazione, riavvia IIS (sempre!) 
+
+🎯 VERSIONI DISPONIBILI
+
+Per .NET 10, le versioni attuali sono :
+
+    10.0.3
+
+    10.0.2
+
+    10.0.1
+
+    10.0.0
+
+Prendi sempre l'ultima stabile (10.0.3 al momento).
+
+Dopo aver installato il .NET 10 Hosting Bundle, il tuo errore 500.19 dovrebbe risolversi perché il modulo AspNetCoreModuleV2 sarà finalmente disponibile per IIS. Fammi sapere se funziona! 🚀
+siamo sulla buona strada. Adesso l'errore è cambiato:
+ HTTP Error 500.30 - ASP.NET Core app failed to start
+Common solutions to this issue:
+
+    The app failed to start
+    The app started but then stopped
+    The app started but threw an exception during startup
+
+Troubleshooting steps:
+
+    Check the system event log for error messages
+    Enable logging the application process' stdout messages
+    Attach a debugger to the application process and inspect
+
+Perfetto! L'errore 500.30 significa che l'applicazione .NET Core parte ma si ferma subito per un'eccezione. Dobbiamo vedere perché l'app si blocca all'avvio.
+🔍 ATTIVIAMO IL LOG DETTAGLIATO
+Passo 1: Abilita stdout log nel web.config
+
+Modifica il tuo web.config per avere log dettagliati:
+xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+      </handlers>
+      
+      <aspNetCore processPath="dotnet" 
+                  arguments=".\VideoConference.Server.dll" 
+                  stdoutLogEnabled="true" 
+                  stdoutLogFile=".\logs\stdout" 
+                  hostingModel="inprocess">
+        
+        <environmentVariables>
+          <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" />  <!-- CAMBIA IN DEVELOPMENT -->
+          <environmentVariable name="ASPNETCORE_URLS" value="http://*:5000" />
+          <environmentVariable name="ASPNETCORE_LOGGING" value="Debug" />
+          <environmentVariable name="COMPLUS_ForceENC" value="1" /> <!-- Forza errori dettagliati -->
+        </environmentVariables>
+        
+      </aspNetCore>
+      
+    </system.webServer>
+  </location>
+</configuration>
+
+Passo 2: Crea la cartella logs
+bash
+
+mkdir C:\VideoConference\Server\logs
+
+Passo 3: Dai permessi di scrittura
+powershell
+
+icacls "C:\VideoConference\Server\logs" /grant "IIS AppPool\VideoConferencePool:(OI)(CI)W"
+icacls "C:\VideoConference\Server\logs" /grant "IIS_IUSRS:(OI)(CI)W"
+
+📊 LEGGIAMO I LOG DEGLI ERRORI
+Controlla i file di log:
+
+Dopo aver riavviato il sito, controlla:
+text
+
+C:\VideoConference\Server\logs\stdout_*.log
+
+Controlla Event Viewer:
+
+    Apri Event Viewer
+
+    Vai su Windows Logs → Application
+
+    Cerca errori con origine .NET Runtime o IIS ASP.NET Core Module
+
+🐛 PROBLEMI COMUNI PER 500.30
+1. Porta già in uso
+
+Verifica se la porta 5000 è già occupata:
+bash
+
+netstat -ano | findstr :5000
+
+2. Dipendenze mancanti
+
+Verifica che tutte le DLL siano nella cartella di pubblicazione:
+bash
+
+dir C:\VideoConference\Server\*.dll
+
+Dovresti vedere:
+
+    VideoConference.Server.dll
+
+    Microsoft.*.dll (tante)
+
+    System.*.dll (tante)
+
+3. Versione di .NET sbagliata
+
+Verifica che il runtime .NET 10 sia installato:
+bash
+
+dotnet --list-runtimes
+
+Dovresti vedere Microsoft.NETCore.App 10.x.x e Microsoft.AspNetCore.App 10.x.x
+4. Errore nel codice di avvio (Program.vb)
+
+Potrebbe esserci un'eccezione in Main() che non vedi.
+🚀 SOLUZIONE: ESEGUIRE L'APP DIRETTAMENTE PER DEBUG
+Testa l'app in console (fuori da IIS):
+bash
+
+cd C:\VideoConference\Server
+dotnet VideoConference.Server.dll
+
+Oppure:
+bash
+
+VideoConference.Server.exe
+
+Se l'app si avvia in console ma non in IIS, è un problema di permessi o configurazione IIS.
+Se l'app non si avvia nemmeno in console, vedi l'errore direttamente!
+🛠️ SOLUZIONE: MODIFICA PROGRAM.VB PER PRODUCTION
+
+Assicurati che il tuo Program.vb gestisca bene gli errori. Ecco una versione robusta:
+vb
+
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+Imports Microsoft.Extensions.Logging
+Imports VideoConference.Server.Hubs
+Imports Console = System.Console
+
+Module Program
+    Sub Main(args As String())
+        Try
+            Console.WriteLine("🚀 Avvio VideoConference Server...")
+            Console.WriteLine($"📂 Directory base: {AppDomain.CurrentDomain.BaseDirectory}")
+            Console.WriteLine($"🕐 Data/Ora: {DateTime.Now}")
+            
+            Dim builder = WebApplication.CreateBuilder(args)
+
+            ' IMPORTANTE: Configurazione per IIS
+            builder.WebHost.UseIIS()
+            builder.WebHost.UseIISIntegration()
+            
+            ' Usa URL da configurazione se non in IIS
+            If Not String.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")) Then
+                Console.WriteLine($"🌐 URL da environment: {Environment.GetEnvironmentVariable("ASPNETCORE_URLS")}")
+            End If
+
+            ' Logging dettagliato
+            builder.Logging.ClearProviders()
+            builder.Logging.AddConsole()
+            builder.Logging.AddDebug()
+            builder.Logging.AddEventLog()
+
+            ' Servizi
+            builder.Services.AddControllersWithViews()
+                .AddRazorRuntimeCompilation()
+                .AddRazorOptions(Sub(options)
+                                     options.ViewLocationFormats.Add("/Views/{1}/{0}.vbhtml")
+                                     options.ViewLocationFormats.Add("/Views/Shared/{0}.vbhtml")
+                                 End Sub)
+
+            builder.Services.AddSingleton(Of MonitoringService)()
+            builder.Services.AddHealthChecks()
+            builder.Services.AddSignalR()
+
+            ' CORS
+            builder.Services.AddCors(Sub(options)
+                                          options.AddPolicy("AllowAll",
+                                              Sub(policy)
+                                                  policy.AllowAnyOrigin()
+                                                        .AllowAnyMethod()
+                                                        .AllowAnyHeader()
+                                              End Sub)
+                                      End Sub)
+
+            Console.WriteLine("✅ Servizi configurati")
+
+            Dim app = builder.Build()
+            Console.WriteLine("✅ App costruita")
+
+            ' Middleware pipeline
+            app.UseStaticFiles()
+            app.UseRouting()
+            app.UseCors("AllowAll")
+            
+            app.MapHealthChecks("/health")
+            app.MapControllers()
+            app.MapHub(Of ConferenceHub)("/conferencehub")
+            
+            app.MapControllerRoute(
+                name:="Dashboard",
+                pattern:="Dashboard/{action=Index}/{id?}",
+                defaults:=New With {.controller = "Dashboard"}
+            )
+
+            app.MapGet("/", Function() "Video Conference Server is running!")
+
+            Console.WriteLine("✅ Endpoint mappati")
+            Console.WriteLine("🌍 Server pronto per partire...")
+            
+            app.Run()
+
+        Catch ex As Exception
+            Console.WriteLine($"❌ ERRORE FATALE: {ex.Message}")
+            Console.WriteLine($"📌 Tipo: {ex.GetType().Name}")
+            Console.WriteLine($"📝 Stack: {ex.StackTrace}")
+            
+            ' Log su file
+            Try
+                Dim errorLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error_startup.txt")
+                File.WriteAllText(errorLog,
+                    $"Data: {DateTime.Now}{Environment.NewLine}" &
+                    $"Errore: {ex.Message}{Environment.NewLine}" &
+                    $"Tipo: {ex.GetType().Name}{Environment.NewLine}" &
+                    $"Stack: {ex.StackTrace}{Environment.NewLine}")
+            Catch
+            End Try
+            
+            ' Aspetta input utente solo in sviluppo
+            If System.Diagnostics.Debugger.IsAttached Then
+                Console.WriteLine("Premi un tasto per uscire...")
+                Console.ReadKey()
+            End If
+            
+            Throw  ' Rilancia per IIS
+        End Try
+    End Sub
+End Module
+
+✅ VERIFICHE RAPIDE
+1. Testa l'app da riga di comando
+bash
+
+cd C:\VideoConference\Server
+dotnet VideoConference.Server.dll
+
+Vedrai l'errore esatto!
+2. Controlla le dipendenze
+bash
+
+dotnet VideoConference.Server.dll --info
+
+3. Verifica che la cartella Views esista
+bash
+
+dir C:\VideoConference\Server\Views\Dashboard\*.vbhtml
+
+📋 RIPORTAMI L'ERRORE
+
+Quando esegui l'app da riga di comando, vedrai l'errore esatto. Copia e incollalo qui e ti dico come risolverlo! 👍
+nel log troviamo questo:
+============================================================
+?? VideoConference Server
+============================================================
+?? Environment: Development
+?? Machine Name: TIZIANO-WIN11-2
+?? Avviato il: 02/03/2026 11:04:45
+
+?? URL in ascolto:
+
+?? Dashboard monitoraggio: /dashboard
+?? SignalR Hub: /conferencehub
+?? Health Check: /health
+?? Info API: /api/info
+============================================================
+warn: Microsoft.AspNetCore.DataProtection.Repositories.EphemeralXmlRepository[50]
+      Using an in-memory repository. Keys will not be persisted to storage.
+warn: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[59]
+      Neither user profile nor HKLM registry available. Using an ephemeral key repository. Protected data will be unavailable when application exits.
+info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[58]
+      Creating key {49cfcf69-00ff-4851-b22c-e2975c0581f3} with creation date 2026-03-02 10:04:45Z, activation date 2026-03-02 10:04:45Z, and expiration date 2026-05-31 10:04:45Z.
+warn: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[35]
+      No XML encryptor configured. Key {49cfcf69-00ff-4851-b22c-e2975c0581f3} may be persisted to storage in unencrypted form.
+crit: Microsoft.AspNetCore.Hosting.Diagnostics[6]
+      Application startup exception
+      System.InvalidOperationException: Body was inferred but the method does not allow inferred body parameters.
+      Below is the list of parameters that we found: 
+      
+      Parameter           | Source                        
+      ---------------------------------------------------------------------------------
+      context             | Body (Inferred)
+      
+      
+      Did you mean to register the "Body (Inferred)" parameter(s) as a Service or apply the [FromServices] or [FromBody] attribute?
+      
+      
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArguments(ParameterInfo[] parameters, RequestDelegateFactoryContext factoryContext)
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArgumentsAndInferMetadata(MethodInfo methodInfo, RequestDelegateFactoryContext factoryContext)
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.InferMetadata(MethodInfo methodInfo, RequestDelegateFactoryOptions options)
+         at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.CreateRouteEndpointBuilder(RouteEntry entry, RoutePattern groupPrefix, IReadOnlyList`1 groupConventions, IReadOnlyList`1 groupFinallyConventions)
+         at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.get_Endpoints()
+         at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.CreateEndpointsUnsynchronized()
+         at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.EnsureEndpointsInitialized()
+         at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.get_Endpoints()
+         at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.Initialize()
+         at System.Threading.LazyInitializer.EnsureInitializedCore[T](T& target, Boolean& initialized, Object& syncLock, Func`1 valueFactory)
+         at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.EnsureInitialized()
+         at Microsoft.AspNetCore.Authorization.Policy.AuthorizationPolicyCache..ctor(EndpointDataSource dataSource)
+         at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+         at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+         at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+         at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+         at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+         at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+         at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+         at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService[T](IServiceProvider provider)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware..ctor(RequestDelegate next, IAuthorizationPolicyProvider policyProvider, IServiceProvider services)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddlewareInternal..ctor(RequestDelegate next, IServiceProvider services, IAuthorizationPolicyProvider policyProvider, ILogger`1 logger)
+         at System.Reflection.ConstructorInvoker.InterpretedInvoke(Object obj, IntPtr* args)
+         at System.Reflection.ConstructorInvoker.InvokeDirectByRefWithFewArgs(Span`1 copyOfArgs)
+         at System.Reflection.ConstructorInvoker.InvokeDirectByRef(Object arg1, Object arg2, Object arg3, Object arg4)
+         at System.Reflection.ConstructorInvoker.InvokeImpl(Object arg1, Object arg2, Object arg3, Object arg4)
+         at System.Reflection.ConstructorInvoker.Invoke(Span`1 arguments)
+         at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+         at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+         at Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.ReflectionMiddlewareBinder.CreateMiddleware(RequestDelegate next)
+         at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+         at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+         at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.InvalidOperationException: Body was inferred but the method does not allow inferred body parameters.
+      Below is the list of parameters that we found: 
+      
+      Parameter           | Source                        
+      ---------------------------------------------------------------------------------
+      context             | Body (Inferred)
+      
+      
+      Did you mean to register the "Body (Inferred)" parameter(s) as a Service or apply the [FromServices] or [FromBody] attribute?
+      
+      
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArguments(ParameterInfo[] parameters, RequestDelegateFactoryContext factoryContext)
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArgumentsAndInferMetadata(MethodInfo methodInfo, RequestDelegateFactoryContext factoryContext)
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.InferMetadata(MethodInfo methodInfo, RequestDelegateFactoryOptions options)
+         at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.CreateRouteEndpointBuilder(RouteEntry entry, RoutePattern groupPrefix, IReadOnlyList`1 groupConventions, IReadOnlyList`1 groupFinallyConventions)
+         at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.get_Endpoints()
+         at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.CreateEndpointsUnsynchronized()
+         at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.EnsureEndpointsInitialized()
+         at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.get_Endpoints()
+         at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.Initialize()
+         at System.Threading.LazyInitializer.EnsureInitializedCore[T](T& target, Boolean& initialized, Object& syncLock, Func`1 valueFactory)
+         at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.EnsureInitialized()
+         at Microsoft.AspNetCore.Authorization.Policy.AuthorizationPolicyCache..ctor(EndpointDataSource dataSource)
+         at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+         at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+         at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+         at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+         at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+         at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+         at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+         at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+         at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService[T](IServiceProvider provider)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware..ctor(RequestDelegate next, IAuthorizationPolicyProvider policyProvider, IServiceProvider services)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddlewareInternal..ctor(RequestDelegate next, IServiceProvider services, IAuthorizationPolicyProvider policyProvider, ILogger`1 logger)
+         at System.Reflection.ConstructorInvoker.InterpretedInvoke(Object obj, IntPtr* args)
+         at System.Reflection.ConstructorInvoker.InvokeDirectByRefWithFewArgs(Span`1 copyOfArgs)
+         at System.Reflection.ConstructorInvoker.InvokeDirectByRef(Object arg1, Object arg2, Object arg3, Object arg4)
+         at System.Reflection.ConstructorInvoker.InvokeImpl(Object arg1, Object arg2, Object arg3, Object arg4)
+         at System.Reflection.ConstructorInvoker.Invoke(Span`1 arguments)
+         at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+         at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+         at Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.ReflectionMiddlewareBinder.CreateMiddleware(RequestDelegate next)
+         at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+         at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+         at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+         at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+         at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+? ERRORE FATALE: Body was inferred but the method does not allow inferred body parameters.
+Below is the list of parameters that we found: 
+
+Parameter           | Source                        
+---------------------------------------------------------------------------------
+context             | Body (Inferred)
+
+
+Did you mean to register the "Body (Inferred)" parameter(s) as a Service or apply the [FromServices] or [FromBody] attribute?
+
+
+Stack Trace:    at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArguments(ParameterInfo[] parameters, RequestDelegateFactoryContext factoryContext)
+   at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArgumentsAndInferMetadata(MethodInfo methodInfo, RequestDelegateFactoryContext factoryContext)
+   at Microsoft.AspNetCore.Http.RequestDelegateFactory.InferMetadata(MethodInfo methodInfo, RequestDelegateFactoryOptions options)
+   at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.CreateRouteEndpointBuilder(RouteEntry entry, RoutePattern groupPrefix, IReadOnlyList`1 groupConventions, IReadOnlyList`1 groupFinallyConventions)
+   at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.get_Endpoints()
+   at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.CreateEndpointsUnsynchronized()
+   at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.EnsureEndpointsInitialized()
+   at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.get_Endpoints()
+   at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.Initialize()
+   at System.Threading.LazyInitializer.EnsureInitializedCore[T](T& target, Boolean& initialized, Object& syncLock, Func`1 valueFactory)
+   at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.EnsureInitialized()
+   at Microsoft.AspNetCore.Authorization.Policy.AuthorizationPolicyCache..ctor(EndpointDataSource dataSource)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+   at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService[T](IServiceProvider provider)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware..ctor(RequestDelegate next, IAuthorizationPolicyProvider policyProvider, IServiceProvider services)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddlewareInternal..ctor(RequestDelegate next, IServiceProvider services, IAuthorizationPolicyProvider policyProvider, ILogger`1 logger)
+   at System.Reflection.ConstructorInvoker.InterpretedInvoke(Object obj, IntPtr* args)
+   at System.Reflection.ConstructorInvoker.InvokeDirectByRefWithFewArgs(Span`1 copyOfArgs)
+   at System.Reflection.ConstructorInvoker.InvokeDirectByRef(Object arg1, Object arg2, Object arg3, Object arg4)
+   at System.Reflection.ConstructorInvoker.InvokeImpl(Object arg1, Object arg2, Object arg3, Object arg4)
+   at System.Reflection.ConstructorInvoker.Invoke(Span`1 arguments)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+   at Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.ReflectionMiddlewareBinder.CreateMiddleware(RequestDelegate next)
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run(IHost host)
+   at VideoConference.Server.Program.Main(String[] args) in C:\Progetti\VideoConference\VideoConference.Server\Program.vb:line 189
+Unhandled exception. System.InvalidOperationException: Body was inferred but the method does not allow inferred body parameters.
+Below is the list of parameters that we found: 
+
+Parameter           | Source                        
+---------------------------------------------------------------------------------
+context             | Body (Inferred)
+
+
+Did you mean to register the "Body (Inferred)" parameter(s) as a Service or apply the [FromServices] or [FromBody] attribute?
+
+
+   at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArguments(ParameterInfo[] parameters, RequestDelegateFactoryContext factoryContext)
+   at Microsoft.AspNetCore.Http.RequestDelegateFactory.CreateArgumentsAndInferMetadata(MethodInfo methodInfo, RequestDelegateFactoryContext factoryContext)
+   at Microsoft.AspNetCore.Http.RequestDelegateFactory.InferMetadata(MethodInfo methodInfo, RequestDelegateFactoryOptions options)
+   at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.CreateRouteEndpointBuilder(RouteEntry entry, RoutePattern groupPrefix, IReadOnlyList`1 groupConventions, IReadOnlyList`1 groupFinallyConventions)
+   at Microsoft.AspNetCore.Routing.RouteEndpointDataSource.get_Endpoints()
+   at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.CreateEndpointsUnsynchronized()
+   at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.EnsureEndpointsInitialized()
+   at Microsoft.AspNetCore.Routing.CompositeEndpointDataSource.get_Endpoints()
+   at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.Initialize()
+   at System.Threading.LazyInitializer.EnsureInitializedCore[T](T& target, Boolean& initialized, Object& syncLock, Func`1 valueFactory)
+   at Microsoft.AspNetCore.Routing.DataSourceDependentCache`1.EnsureInitialized()
+   at Microsoft.AspNetCore.Authorization.Policy.AuthorizationPolicyCache..ctor(EndpointDataSource dataSource)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+   at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService[T](IServiceProvider provider)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware..ctor(RequestDelegate next, IAuthorizationPolicyProvider policyProvider, IServiceProvider services)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddlewareInternal..ctor(RequestDelegate next, IServiceProvider services, IAuthorizationPolicyProvider policyProvider, ILogger`1 logger)
+   at System.Reflection.ConstructorInvoker.InterpretedInvoke(Object obj, IntPtr* args)
+   at System.Reflection.ConstructorInvoker.InvokeDirectByRefWithFewArgs(Span`1 copyOfArgs)
+   at System.Reflection.ConstructorInvoker.InvokeDirectByRef(Object arg1, Object arg2, Object arg3, Object arg4)
+   at System.Reflection.ConstructorInvoker.InvokeImpl(Object arg1, Object arg2, Object arg3, Object arg4)
+   at System.Reflection.ConstructorInvoker.Invoke(Span`1 arguments)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+   at Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.ReflectionMiddlewareBinder.CreateMiddleware(RequestDelegate next)
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run(IHost host)
+   at VideoConference.Server.Program.Main(String[] args) in C:\Progetti\VideoConference\VideoConference.Server\Program.vb:line 189
+
+Ecco il problema! 🎯
+
+Hai un errore nella definizione di una endpoint lambda (MapGet o MapPost) che usa un parametro context senza specificare la provenienza. Il sistema sta cercando di interpretare context come parametro dal body della richiesta, ma non è corretto.
+🔍 INDIVIDUARE L'ENDPOINT PROBLEMATICO
+
+Il problema è in uno di questi MapGet che hai in Program.vb (linea 189):
+vb
+
+app.MapGet("/", Function() "Video Conference Server is running! Vai a /Dashboard per la console di monitoraggio")
+
+app.MapGet("/test", Function() "Server funziona!")
+
+app.MapGet("/routes", Function() As String
+    Dim routes = String.Join(", ", app.Urls)
+    Return $"URLs attive: {routes}"
+End Function)
+
+app.MapGet("/api/info", Async Function(context) As Task
+    Await context.Response.WriteAsJsonAsync(New With {
+        .Server = "VideoConference Server",
+        .Version = "1.0.0",
+        .Environment = app.Environment.EnvironmentName,
+        .Time = DateTime.Now,
+        .Machine = Environment.MachineName,
+        .OSVersion = Environment.OSVersion.ToString(),
+        .Processors = Environment.ProcessorCount,
+        .MemoryMB = GC.GetTotalMemory(False) / 1024 / 1024
+    })
+End Function)
+
+✅ SOLUZIONE - ENDPOINT CORRETTI
+
+Ecco come devono essere scritti gli endpoint:
+Opzione 1: Usa HttpContext tipizzato (RACCOMANDATA)
+vb
+
+' Endpoint info server con HttpContext tipizzato
+app.MapGet("/api/info", Async Function(context As HttpContext) As Task
+    Await context.Response.WriteAsJsonAsync(New With {
+        .Server = "VideoConference Server",
+        .Version = "1.0.0",
+        .Environment = app.Environment.EnvironmentName,
+        .Time = DateTime.Now,
+        .Machine = Environment.MachineName,
+        .OSVersion = Environment.OSVersion.ToString(),
+        .Processors = Environment.ProcessorCount,
+        .MemoryMB = GC.GetTotalMemory(False) / 1024 / 1024
+    })
+End Function)
+
+Opzione 2: Usa il contesto implicito con cast
+vb
+
+' Se vuoi mantenere 'context' senza tipo, devi specificare [FromServices]
+app.MapGet("/api/info", Async Function(<FromServices> context As HttpContext) As Task
+    Await context.Response.WriteAsJsonAsync(New With {
+        .Server = "VideoConference Server",
+        .Version = "1.0.0",
+        .Environment = app.Environment.EnvironmentName,
+        .Time = DateTime.Now,
+        .Machine = Environment.MachineName,
+        .OSVersion = Environment.OSVersion.ToString(),
+        .Processors = Environment.ProcessorCount,
+        .MemoryMB = GC.GetTotalMemory(False) / 1024 / 1024
+    })
+End Function)
+
+Opzione 3: Usa HttpResponse direttamente
+vb
+
+' Ancora più semplice - usa solo ciò che ti serve
+app.MapGet("/api/info", Function(response As HttpResponse)
+    response.ContentType = "application/json"
+    Dim info = New With {
+        .Server = "VideoConference Server",
+        .Version = "1.0.0",
+        .Environment = app.Environment.EnvironmentName,
+        .Time = DateTime.Now,
+        .Machine = Environment.MachineName,
+        .OSVersion = Environment.OSVersion.ToString(),
+        .Processors = Environment.ProcessorCount,
+        .MemoryMB = GC.GetTotalMemory(False) / 1024 / 1024
+    }
+    Return response.WriteAsJsonAsync(info)
+End Function)
+
+🛠️ PROGRAM.VB COMPLETO CORRETTO
+
+Ecco la sezione endpoint corretta:
+vb
+
+' Endpoint di test/info
+app.MapGet("/", Function() "Video Conference Server is running! Vai a /Dashboard per la console di monitoraggio")
+
+app.MapGet("/test", Function() "Server funziona!")
+
+app.MapGet("/routes", Function() As String
+    Dim routes = String.Join(", ", app.Urls)
+    Return $"URLs attive: {routes}"
+End Function)
+
+' ENDPOINT CORRETTO - con HttpContext tipizzato
+app.MapGet("/api/info", Async Function(context As HttpContext) As Task
+    Await context.Response.WriteAsJsonAsync(New With {
+        .Server = "VideoConference Server",
+        .Version = "1.0.0",
+        .Environment = app.Environment.EnvironmentName,
+        .Time = DateTime.Now,
+        .Machine = Environment.MachineName,
+        .OSVersion = Environment.OSVersion.ToString(),
+        .Processors = Environment.ProcessorCount,
+        .MemoryMB = GC.GetTotalMemory(False) / 1024 / 1024
+    })
+End Function)
+
+' Oppure versione ancora più semplice senza context
+app.MapGet("/api/info2", Function() Results.Json(New With {
+    .Server = "VideoConference Server",
+    .Version = "1.0.0",
+    .Time = DateTime.Now
+}))
+
+📌 COSA SUCCEDEVA PRIMA
+
+Nel codice originale avevi:
+vb
+
+Async Function(context) As Task  ' SENZA TIPO
+
+Il compilatore non sapeva cosa fosse context e lo interpretava come parametro dal body della richiesta, causando l'errore.
+✅ DOPO LA CORREZIONE
+
+    Ricompila il progetto
+
+    Riavvia IIS
+
+    Testa: http://192.168.1.56:5000/api/info
+
+Dovrebbe funzionare! 🚀
+
+Fammi sapere se risolvi o se hai altri errori!
+perfetto! da iis funziona tutto. Mi piacerebbe eseguirlo da Visual Studio così è più comodo fare il debug, ma se lo lancio da Visual Stutio da questo errore:
+System.Net.Sockets.SocketException
+  HResult=0x80004005
+  Message=Indirizzo richiesto non valido nel proprio contesto.
+  Source=System.Net.Sockets
+  StackTrace:
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.<BindAsync>d__8.MoveNext()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.<BindEndpointAsync>d__3.MoveNext()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions.<BindAsync>d__61.MoveNext()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.<BindAsync>d__3.MoveNext()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<BindAsync>d__31.MoveNext()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<StartAsync>d__28`1.MoveNext()
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.<StartAsync>d__40.MoveNext()
+   at Microsoft.Extensions.Hosting.Internal.Host.<<StartAsync>b__14_1>d.MoveNext()
+   at Microsoft.Extensions.Hosting.Internal.Host.<ForeachService>d__17`1.MoveNext()
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>d__14.MoveNext()
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.<RunAsync>d__4.MoveNext()
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.<RunAsync>d__4.MoveNext()
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run(IHost host)
+   at VideoConference.Server.Program.Main(String[] args) in C:\Progetti\VideoConference\VideoConference.Server\Program.vb:line 215
+Forse sono in conflitto con IIS?
+
+Esatto! Hai perfettamente ragione! 🎯
+
+Il conflitto è perché IIS sta già usando le porte 5000 e 5001 sul tuo IP 192.168.1.56. Quando Visual Studio prova a lanciare la stessa app sulla stessa porta, trova la porta già occupata da IIS.
+🔧 SOLUZIONI POSSIBILI
+Opzione 1: Fermare IIS temporaneamente (per debugging)
+bash
+
+# Apri PowerShell come amministratore
+iisreset /stop
+
+Poi avvia da Visual Studio. Quando hai finito:
+bash
+
+iisreset /start
+
+Opzione 2: Usare porte diverse in sviluppo (RACCOMANDATA)
+
+Modifica il Program.vb per usare porte diverse quando sei in ambiente di sviluppo:
+vb
+
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+Imports VideoConference.Server.Hubs
+Imports Console = System.Console
+
+Module Program
+    Sub Main(args As String())
+        Try
+            Dim builder = WebApplication.CreateBuilder(args)
+
+            ' Configurazione per IIS
+            builder.WebHost.UseIIS()
+            builder.WebHost.UseIISIntegration()
+            
+            ' Usa URL diverse per sviluppo
+            If builder.Environment.IsDevelopment() Then
+                ' Usa porte diverse in sviluppo per evitare conflitti con IIS
+                builder.WebHost.UseUrls("http://localhost:6000;https://localhost:6001")
+                Console.WriteLine("🔧 MODALITÀ SVILUPPO: porte 6000/6001")
+            End If
+
+            ' ... resto del codice invariato ...
+            
+            Dim app = builder.Build()
+            
+            ' ... resto del codice invariato ...
+            
+            app.Run()
+            
+        Catch ex As Exception
+            Console.WriteLine($"❌ ERRORE: {ex.Message}")
+        End Try
+    End Sub
+End Module
+
+Opzione 3: Configurare launchSettings.json
+
+Crea/modifica il file Properties\launchSettings.json nel progetto server:
+json
+
+{
+  "profiles": {
+    "VideoConference.Server": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:6000;https://localhost:6001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  },
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:5000",
+      "sslPort": 5001
+    }
+  }
+}
+
+Opzione 4: Usare IIS Express da Visual Studio
+
+In Visual Studio, nel menu a tendina dei profili di avvio, seleziona:
+
+    IIS Express invece di VideoConference.Server
+
+Questo userà IIS Express (versione leggera) su porte casuali senza conflitti.
+📝 MODIFICA COMPLETA PER IL PROGRAM.VB
+
+Ecco il Program.vb completo con la gestione intelligente delle porte:
+vb
+
+Imports Microsoft.AspNetCore.Builder
+Imports Microsoft.AspNetCore.Hosting
+Imports Microsoft.AspNetCore.Http
+Imports Microsoft.Extensions.DependencyInjection
+Imports Microsoft.Extensions.Hosting
+Imports Microsoft.Extensions.Logging
+Imports VideoConference.Server.Hubs
+Imports Console = System.Console
+
+Module Program
+    Sub Main(args As String())
+        Try
+            Dim builder = WebApplication.CreateBuilder(args)
+
+            ' 🚀 CONFIGURAZIONE PER IIS
+            builder.WebHost.UseIIS()
+            builder.WebHost.UseIISIntegration()
+            
+            ' 🔧 GESTIONE INTELLIGENTE DELLE PORTE
+            If builder.Environment.IsDevelopment() Then
+                ' In sviluppo, usa porte diverse per evitare conflitti con IIS
+                builder.WebHost.UseUrls("http://localhost:6000;https://localhost:6001")
+                Console.WriteLine("🔧 MODALITÀ SVILUPPO: porte 6000/6001")
+            Else
+                ' In produzione, usa le porte configurate da IIS o environment
+                Console.WriteLine("🌍 MODALITÀ PRODUZIONE: porte gestite da IIS")
+            End If
+
+            ' Servizi
+            builder.Services.AddControllersWithViews()
+                .AddRazorRuntimeCompilation()
+                .AddRazorOptions(Sub(options)
+                                     options.ViewLocationFormats.Add("/Views/{1}/{0}.vbhtml")
+                                     options.ViewLocationFormats.Add("/Views/Shared/{0}.vbhtml")
+                                 End Sub)
+
+            builder.Services.AddSingleton(Of MonitoringService)()
+            builder.Services.AddHealthChecks()
+            builder.Services.AddSignalR()
+
+            ' CORS
+            builder.Services.AddCors(Sub(options)
+                                          options.AddPolicy("AllowAll",
+                                              Sub(policy)
+                                                  policy.AllowAnyOrigin()
+                                                        .AllowAnyMethod()
+                                                        .AllowAnyHeader()
+                                              End Sub)
+                                      End Sub)
+
+            ' Logging
+            builder.Logging.ClearProviders()
+            builder.Logging.AddConsole()
+            builder.Logging.AddDebug()
+
+            Dim app = builder.Build()
+
+            ' Pipeline
+            If app.Environment.IsDevelopment() Then
+                app.UseDeveloperExceptionPage()
+            Else
+                app.UseExceptionHandler("/Home/Error")
+                app.UseHsts()
+            End If
+
+            app.UseStaticFiles()
+            app.UseRouting()
+            app.UseCors("AllowAll")
+            
+            app.MapHealthChecks("/health")
+            app.MapControllers()
+            app.MapHub(Of ConferenceHub)("/conferencehub")
+            
+            app.MapControllerRoute(
+                name:="Dashboard",
+                pattern:="Dashboard/{action=Index}/{id?}",
+                defaults:=New With {.controller = "Dashboard"}
+            )
+
+            ' Endpoint di test
+            app.MapGet("/", Function() "Video Conference Server is running!")
+            app.MapGet("/test", Function() "Server funziona!")
+            
+            app.MapGet("/routes", Function() As String
+                Dim routes = String.Join(", ", app.Urls)
+                Return $"URLs attive: {routes}"
+            End Function)
+
+            ' Endpoint info (corretto!)
+            app.MapGet("/api/info", Async Function(context As HttpContext) As Task
+                Await context.Response.WriteAsJsonAsync(New With {
+                    .Server = "VideoConference Server",
+                    .Version = "1.0.0",
+                    .Environment = app.Environment.EnvironmentName,
+                    .Time = DateTime.Now,
+                    .Machine = Environment.MachineName,
+                    .Ports = String.Join(", ", app.Urls)
+                })
+            End Function)
+
+            ' Log di avvio
+            If Not app.Environment.IsProduction() Then
+                Dim separatore As String = New String("="c, 60)
+                Console.WriteLine(separatore)
+                Console.WriteLine("🎥 VideoConference Server")
+                Console.WriteLine(separatore)
+                Console.WriteLine($"🌍 Environment: {app.Environment.EnvironmentName}")
+                Console.WriteLine($"💻 Machine Name: {Environment.MachineName}")
+                Console.WriteLine($"🕐 Avviato il: {DateTime.Now}")
+                Console.WriteLine()
+                Console.WriteLine($"🌐 URL in ascolto:")
+                For Each url In app.Urls
+                    Console.WriteLine($"   - {url}")
+                Next
+                Console.WriteLine(separatore)
+            End If
+
+            app.Run()
+
+        Catch ex As Exception
+            Console.WriteLine($"❌ ERRORE FATALE: {ex.Message}")
+            Console.WriteLine($"📌 Tipo: {ex.GetType().Name}")
+            Console.WriteLine($"📝 Stack: {ex.StackTrace}")
+            
+            If System.Diagnostics.Debugger.IsAttached Then
+                Console.WriteLine("Premi un tasto per uscire...")
+                Console.ReadKey()
+            End If
+            Throw
+        End Try
+    End Sub
+End Module
+
+✅ RIEPILOGO
+
+    Con IIS (produzione): http://192.168.1.56:5000
+
+    Con Visual Studio (sviluppo): http://localhost:6000
+
+Così non c'è conflitto! 🚀
+
+Prova e fammi sapere se funziona!
+ok adesso da VS parte, ma dal browser se metto l'indirizzo: http://localhost:6000/api/stats esce l'errore del browser:
+Questo indirizzo è bloccato
+
+Questo indirizzo utilizza una porta di rete normalmente destinata a scopi differenti dalla navigazione web. Firefox ha annullato la richiesta per motivi di sicurezza.
+Letti 10 pagine web
+
+Hai centrato il problema! È un meccanismo di sicurezza del browser, non un errore del tuo server 🎯
+🔍 COSA SUCCEDE
+
+La porta 6000 è nella blacklist dei browser perché è la porta predefinita del protocollo X11 (sistema grafico Unix/Linux). Per prevenire attacchi cross-protocollo, Chrome, Firefox e Safari bloccano l'accesso a queste porte .
+
+Il tuo server funziona perfettamente (lo puoi verificare con curl), ma il browser blocca la richiesta prima ancora che parta .
+✅ SOLUZIONI POSSIBILI
+Opzione 1: Cambia porta in Visual Studio (RACCOMANDATA)
+
+La soluzione più semplice: evita le porte nella blacklist. Modifica Program.vb:
+vb
+
+' In sviluppo, usa porte NON nella blacklist (es. 5002, 8080, 3000, 4000)
+If builder.Environment.IsDevelopment() Then
+    ' ✅ Porte sicure (non bloccate)
+    builder.WebHost.UseUrls("http://localhost:5002;https://localhost:5003")
+    Console.WriteLine("🔧 MODALITÀ SVILUPPO: porte 5002/5003")
+End If
+
+Porte consigliate che NON sono bloccate:
+
+    5002 (vicina alla tua 5000, ma sicura)
+
+    8080 (classica per sviluppo)
+
+    3000 (usata da Node.js)
+
+    4000 (alternativa sicura)
+
+Opzione 2: Forza Chrome a permettere la porta 6000
+
+Se proprio vuoi usare la 6000, puoi avviare Chrome con un parametro speciale :
+bash
+
+# Chiudi tutte le istanze di Chrome e riapri con:
+chrome.exe --explicitly-allowed-ports=6000
+
+Su Windows, modifica il collegamento di Chrome:
+
+    Tasto destro sul collegamento di Chrome → Proprietà
+
+    Nel campo Destinazione, aggiungi alla fine:
+    text
+
+    --explicitly-allowed-ports=6000
+
+    Riavvia Chrome
+
+Opzione 3: Configura Firefox
+
+Se usi Firefox :
+
+    Apri about:config
+
+    Cerca network.security.ports.banned.override
+
+    Se non esiste, creala (tipo: Stringa)
+
+    Imposta il valore a 6000 (per più porte: 6000,6666,6667)
+
+Opzione 4: Verifica con curl (per conferma)
+
+Per dimostrare che il server funziona nonostante il blocco browser :
+bash
+
+curl http://localhost:6000/api/stats
+
+Dovresti vedere la risposta JSON!
+🎯 LA MIA RACCOMANDAZIONE
+
+Vai con Opzione 1 (cambia porta in Visual Studio a 5002/5003). È:
+
+    ✅ Più semplice
+
+    ✅ Non richiede configurazioni strane
+
+    ✅ Funziona su tutti i browser senza eccezioni
+
+    ✅ Non compromette la sicurezza
+
+Vuoi che ti mostri la modifica completa al Program.vb con la nuova porta?
+ok ho applicato l'opzione 1
+
+Perfetto! 🎉 Ora hai:
+✅ CONFIGURAZIONE CORRENTE
+
+    Visual Studio / Sviluppo: http://localhost:5002 e https://localhost:5003
+
+    IIS / Produzione: http://192.168.1.56:5000
+
+📊 VERIFICHE RAPIDE
+Da Visual Studio (debug):
+
+    http://localhost:5002/dashboard
+
+    http://localhost:5002/api/stats
+
+    http://localhost:5002/conferencehub
+
+Da IIS (produzione):
+
+    http://192.168.1.56:5000/dashboard
+
+    http://192.168.1.56:5000/api/stats
+
+    http://192.168.1.56:5000/conferencehub
+
+🚀 PROSSIMI PASSI
+
+Ora che il server funziona sia in sviluppo che in produzione, cosa vuoi affrontare?
+
+Dalla tua priority list iniziale:
+
+🔴 Priorità Alta
+
+    Echo cancellation (migliorare audio)
+
+    Shortcut tastiera (Ctrl+D, Ctrl+M, Ctrl+Q)
+
+🟡 Priorità Media
+
+    Selezione schermo/finestra
+
+    Messaggi privati chat
+
+    Tema chiaro/scuro
+
+    Qualità adattiva
+
+🟢 Priorità Bassa
+
+    Registrazione chiamate
+
+    Condivisione file
+
+    Lavagna interattiva
+
+Su cosa vuoi lavorare? O preferisci testare prima che tutto funzioni correttamente con la nuova configurazione?

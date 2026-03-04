@@ -1,7 +1,7 @@
 [
   {
     "ContainingType": "VideoConference.Server.Program\u002B_Closure$__",
-    "Method": "_Lambda$__0-4",
+    "Method": "_Lambda$__0-6",
     "RelativePath": "",
     "HttpMethod": "GET",
     "IsController": false,
@@ -18,36 +18,6 @@
     ]
   },
   {
-    "ContainingType": "VideoConference.Server.DashboardController",
-    "Method": "Index",
-    "RelativePath": "api/dashboard",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "VideoConference.Server.DashboardController",
-    "Method": "Ping",
-    "RelativePath": "api/ping",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "VideoConference.Server.DashboardController",
-    "Method": "GetStats",
-    "RelativePath": "api/stats",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": []
-  },
-  {
     "ContainingType": "VideoConference.Server.VideoConference.Server.Controllers.TestController",
     "Method": "GetTest",
     "RelativePath": "api/test",
@@ -58,8 +28,28 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "VideoConference.Server.DashboardController",
+    "Method": "Index",
+    "RelativePath": "dashboard",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VideoConference.Server.DashboardController",
+    "Method": "Ping",
+    "RelativePath": "ping",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "VideoConference.Server.Program\u002B_Closure$__0-0",
-    "Method": "_Lambda$__6",
+    "Method": "_Lambda$__8",
     "RelativePath": "routes",
     "HttpMethod": "GET",
     "IsController": false,
@@ -76,8 +66,18 @@
     ]
   },
   {
+    "ContainingType": "VideoConference.Server.DashboardController",
+    "Method": "GetStats",
+    "RelativePath": "stats",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "VideoConference.Server.Program\u002B_Closure$__",
-    "Method": "_Lambda$__0-5",
+    "Method": "_Lambda$__0-7",
     "RelativePath": "test",
     "HttpMethod": "GET",
     "IsController": false,

@@ -6,6 +6,7 @@ Namespace Hubs
     Public Class ConferenceHub
         Inherits Hub
 
+        Private Shared _debugCallCount As Integer = 0
         Private Shared ReadOnly _connections As New ConcurrentDictionary(Of String, String)()
         Private Shared ReadOnly _rooms As New ConcurrentDictionary(Of String, String)()
         Private Shared ReadOnly _userStatus As New ConcurrentDictionary(Of String, UserStatus)()
@@ -254,6 +255,7 @@ Namespace Hubs
                 Debug.Print($"SendChatMessage: {userName} in {roomId}: {message}")
 
                 ' Invia a tutti gli altri nella stanza
+                'Await Clients.Group(roomId).SendAsync("ReceiveChatMessage",
                 Await Clients.OthersInGroup(roomId).SendAsync("ReceiveChatMessage",
                     userName,
                     message,
@@ -270,19 +272,67 @@ Namespace Hubs
         ''' <summary>
         ''' Invia un messaggio privato a un utente specifico
         ''' </summary>
+        'Public Async Function SendPrivateMessage(targetConnectionId As String, userName As String, message As String) As Task
+        '    Try
+        '        If String.IsNullOrEmpty(message) Then Return
+
+        '        Debug.Print($"SendPrivateMessage: {userName} -> {targetConnectionId}: {message}")
+
+        '        ' Ottieni il nome del mittente
+        '        Dim senderName = _connections.GetValueOrDefault(Context.ConnectionId, "Utente")
+
+        '        ' Invia al destinatario
+        '        Await Clients.Client(targetConnectionId).SendAsync("ReceivePrivateMessage",
+        '                                                            Context.ConnectionId,  ' ID del mittente
+        '                                                            senderName,            ' Nome del mittente
+        '                                                            message,               ' Testo del messaggio
+        '                                                            DateTime.Now)          ' Timestamp
+
+        '        ' conferma al mittente che il messaggio è stato inviato
+        '        Await Clients.Caller.SendAsync("PrivateMessageSent", targetConnectionId, message)
+
+        '    Catch ex As Exception
+        '        Debug.Print($"Errore in SendPrivateMessage: {ex.Message}")
+        '    End Try
+        'End Function
+
         Public Async Function SendPrivateMessage(targetConnectionId As String, userName As String, message As String) As Task
             Try
                 If String.IsNullOrEmpty(message) Then Return
 
-                Debug.Print($"SendPrivateMessage: {userName} -> {targetConnectionId}: {message}")
+                Dim senderName = _connections.GetValueOrDefault(Context.ConnectionId, "Utente")
 
+                Debug.Print($"[SERVER] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                Debug.Print($"[SERVER] SendPrivateMessage INIZIO")
+                Debug.Print($"[SERVER]   Mittente: {senderName} (ID: {Context.ConnectionId})")
+                Debug.Print($"[SERVER]   Destinatario ID: {targetConnectionId}")
+                Debug.Print($"[SERVER]   Messaggio: {message}")
+                Debug.Print($"[SERVER]   Parametro userName ricevuto: {userName}")
+
+                ' Controlla quante volte viene chiamato
+                _debugCallCount += 1
+                Dim currentCall = _debugCallCount
+                Debug.Print($"[SERVER]   Chiamata # {currentCall} per questo messaggio")
+
+                ' Invia al destinatario
+                Debug.Print($"[SERVER]   Invio a Client({targetConnectionId}).ReceivePrivateMessage...")
                 Await Clients.Client(targetConnectionId).SendAsync("ReceivePrivateMessage",
-                    userName,
-                    message,
-                    DateTime.Now)
+                                                            Context.ConnectionId,
+                                                            senderName,
+                                                            message,
+                                                            DateTime.Now)
+                Debug.Print($"[SERVER]   ✅ Inviato a destinatario")
+
+                ' Conferma al mittente
+                Debug.Print($"[SERVER]   Invio a Caller.PrivateMessageSent...")
+                Await Clients.Caller.SendAsync("PrivateMessageSent", targetConnectionId, message)
+                Debug.Print($"[SERVER]   ✅ Conferma inviata al mittente")
+
+                Debug.Print($"[SERVER] SendPrivateMessage FINE")
+                Debug.Print($"[SERVER] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
             Catch ex As Exception
-                Debug.Print($"Errore in SendPrivateMessage: {ex.Message}")
+                Debug.Print($"[SERVER] ❌ ERRORE: {ex.Message}")
             End Try
         End Function
 

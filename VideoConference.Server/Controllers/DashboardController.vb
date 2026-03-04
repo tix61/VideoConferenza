@@ -2,7 +2,7 @@
 Imports Microsoft.AspNetCore.Hosting
 Imports VideoConference.Shared.Models
 
-<Route("api")>
+'<Route("api")>
 <ApiController>
 Public Class DashboardController
     Inherits Controller
@@ -43,19 +43,6 @@ Public Class DashboardController
     <HttpGet("dashboard")>
     Public Function Index() As IActionResult
         Dim data = _monitoring.GetDashboardData()
-
-        '' Usa Directory.GetCurrentDirectory() per ottenere la cartella di esecuzione
-        'Dim currentDir = IO.Directory.GetCurrentDirectory()
-        'Dim viewPath = IO.Path.Combine(currentDir, "Views", "Dashboard", "Index.vbhtml")
-
-        'Console.WriteLine($"Cerco view in: {viewPath}")
-        'Console.WriteLine($"File esiste: {IO.File.Exists(viewPath)}")
-
-        'If Not IO.File.Exists(viewPath) Then
-        '    Return Content($"File non trovato: {viewPath}")
-        'End If
-
-        'Dim viewContent = IO.File.ReadAllText(viewPath)
         Return View(data)
     End Function
 

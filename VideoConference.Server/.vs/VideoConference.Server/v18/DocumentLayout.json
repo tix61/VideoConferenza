@@ -7,12 +7,28 @@
       "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:hubs\\conferencehub.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\services\\monitoringservice.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
-      "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:services\\monitoringservice.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
+      "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\program.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
+      "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:program.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\controllers\\dashboardcontroller.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
       "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:controllers\\dashboardcontroller.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\web.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:web.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\startup.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
+      "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:startup.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\videoconference.server.vbproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:videoconference.server.vbproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\services\\monitoringservice.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
+      "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:services\\monitoringservice.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\wwwroot\\js\\dashboard.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -31,10 +47,6 @@
       "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:controllers\\testcontroller.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|c:\\progetti\\videoconference\\videoconference.server\\program.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}",
-      "RelativeMoniker": "D:0:0:{F9E3336D-A4E2-DE17-7652-64E433073B39}|VideoConference.Server.vbproj|solutionrelative:program.vb||{2C015C70-C72C-11D0-88C3-00A0C9110049}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{4530E45A-6CCC-4BA2-A4CE-ECB8FE546F0F}|..\\VideoConference.Shared\\VideoConference.Shared.csproj|c:\\progetti\\videoconference\\videoconference.shared\\models\\dashboardmodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
@@ -49,20 +61,21 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 9,
+          "SelectedChildIndex": 11,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 1,
               "Title": "Program.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Program.vb",
               "RelativeDocumentMoniker": "Program.vb",
               "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Program.vb",
               "RelativeToolTip": "Program.vb",
-              "ViewState": "AgIAAGcAAAAAAAAAAAAAAGwAAAAcAAAAAAAAAA==",
+              "ViewState": "AgIAAAQAAAAAAAAAAAAUwBQAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
               "WhenOpened": "2026-02-27T10:46:29.652Z",
-              "IsPinned": true
+              "IsPinned": true,
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -72,7 +85,7 @@
               "RelativeDocumentMoniker": "Controllers\\DashboardController.vb",
               "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Controllers\\DashboardController.vb",
               "RelativeToolTip": "Controllers\\DashboardController.vb",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAAABMAAAAtAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
               "WhenOpened": "2026-02-27T11:09:06.696Z",
               "IsPinned": true,
@@ -89,6 +102,43 @@
             {
               "$type": "Document",
               "DocumentIndex": 5,
+              "Title": "VideoConference.Server.vbproj",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+              "RelativeDocumentMoniker": "VideoConference.Server.vbproj",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+              "RelativeToolTip": "VideoConference.Server.vbproj",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAxwGsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003380|",
+              "WhenOpened": "2026-03-02T09:21:33.674Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Startup.vb",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Startup.vb",
+              "RelativeDocumentMoniker": "Startup.vb",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Startup.vb",
+              "RelativeToolTip": "Startup.vb",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
+              "WhenOpened": "2026-03-02T09:20:28.07Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "web.config",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\web.config",
+              "RelativeDocumentMoniker": "web.config",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\web.config",
+              "RelativeToolTip": "web.config",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAABDAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000601|",
+              "WhenOpened": "2026-03-02T09:15:59.421Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
               "Title": "dashboard.css",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\wwwroot\\css\\dashboard.css",
               "RelativeDocumentMoniker": "wwwroot\\css\\dashboard.css",
@@ -100,7 +150,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 10,
               "Title": "TestController.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Controllers\\TestController.vb",
               "RelativeDocumentMoniker": "Controllers\\TestController.vb",
@@ -112,7 +162,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 7,
               "Title": "dashboard.js",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\wwwroot\\js\\dashboard.js",
               "RelativeDocumentMoniker": "wwwroot\\js\\dashboard.js",
@@ -124,7 +174,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 11,
               "Title": "DashBoardModels.cs",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Shared\\Models\\DashBoardModels.cs",
               "RelativeDocumentMoniker": "..\\VideoConference.Shared\\Models\\DashBoardModels.cs",
@@ -136,7 +186,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 0,
+              "Title": "ConferenceHub.vb",
+              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb",
+              "RelativeDocumentMoniker": "Hubs\\ConferenceHub.vb",
+              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb",
+              "RelativeToolTip": "Hubs\\ConferenceHub.vb",
+              "ViewState": "AgIAACcBAAAAAAAAAAAowD0BAABoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
+              "WhenOpened": "2026-02-27T10:44:22.501Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
               "Title": "VideoConference.Server.AssemblyInfo.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\obj\\Debug\\net10.0\\VideoConference.Server.AssemblyInfo.vb",
               "RelativeDocumentMoniker": "obj\\Debug\\net10.0\\VideoConference.Server.AssemblyInfo.vb",
@@ -148,20 +211,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "ConferenceHub.vb",
-              "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb",
-              "RelativeDocumentMoniker": "Hubs\\ConferenceHub.vb",
-              "ToolTip": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Hubs\\ConferenceHub.vb",
-              "RelativeToolTip": "Hubs\\ConferenceHub.vb",
-              "ViewState": "AgIAAEsAAAAAAAAAAAAQwF8AAAAMAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
-              "WhenOpened": "2026-02-27T10:44:22.501Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 8,
               "Title": "Index.vbhtml",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Views\\Dashboard\\Index.vbhtml",
               "RelativeDocumentMoniker": "Views\\Dashboard\\Index.vbhtml",
@@ -173,7 +223,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 6,
               "Title": "MonitoringService.vb",
               "DocumentMoniker": "C:\\Progetti\\VideoConference\\VideoConference.Server\\Services\\MonitoringService.vb",
               "RelativeDocumentMoniker": "Services\\MonitoringService.vb",
@@ -181,7 +231,8 @@
               "RelativeToolTip": "Services\\MonitoringService.vb",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAE8AAAAkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003361|",
-              "WhenOpened": "2026-02-27T10:44:04.056Z"
+              "WhenOpened": "2026-02-27T10:44:04.056Z",
+              "EditorCaption": ""
             }
           ]
         }

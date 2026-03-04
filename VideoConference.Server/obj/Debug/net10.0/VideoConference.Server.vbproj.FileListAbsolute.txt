@@ -375,3 +375,10 @@ C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\VideoConfer
 C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\VideoConference.Shared.pdb
 C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net10.0\compressed\s2a4059sc8-{0}-zk12n7wfr4-zk12n7wfr4.gz
 C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net10.0\compressed\kgmqf2d89v-{0}-7a0qm8bmnt-7a0qm8bmnt.gz
+C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\Views\Dashboard\Index.vbhtml
+C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\web.config
+C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\Microsoft.AspNetCore.Hosting.WindowsServices.dll
+C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\Microsoft.Extensions.Hosting.WindowsServices.dll
+C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\System.ServiceProcess.ServiceController.dll
+C:\Progetti\VideoConference\VideoConference.Server\bin\Debug\net10.0\runtimes\win\lib\net10.0\System.ServiceProcess.ServiceController.dll
+C:\Progetti\VideoConference\VideoConference.Server\obj\Debug\net10.0\VideoConference.Server.RazorTargetAssemblyInfo.cache

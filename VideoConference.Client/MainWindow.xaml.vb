@@ -16,7 +16,56 @@ Imports System.Windows.Media.Imaging
 Imports System.Windows.Threading
 Imports Microsoft.AspNetCore.SignalR.Client
 Imports Microsoft.Extensions.Logging
-Imports VideoConference.Client.VideoConference.Client
+Imports VideoConference.Client
+
+' Classe per rappresentare un destinatario nella ComboBox
+Public Class RecipientItem
+    Public Property ConnectionId As String
+    Public Property UserName As String
+    Public Property Icon As String
+
+    Public ReadOnly Property DisplayName As String
+        Get
+            If ConnectionId = "all" Then
+                Return "Tutti (chat pubblica)"
+            Else
+                Return UserName
+            End If
+        End Get
+    End Property
+End Class
+
+' Converter per Boolean to BorderThickness
+Public Class BooleanToBorderThicknessConverter
+    Implements System.Windows.Data.IValueConverter
+
+    Public Function Convert(value As Object, targetType As Type, parameter As Object, culture As Globalization.CultureInfo) As Object Implements System.Windows.Data.IValueConverter.Convert
+        If TypeOf value Is Boolean AndAlso CBool(value) Then
+            Return New Thickness(1)
+        End If
+        Return New Thickness(0)
+    End Function
+
+    Public Function ConvertBack(value As Object, targetType As Type, parameter As Object, culture As Globalization.CultureInfo) As Object Implements System.Windows.Data.IValueConverter.ConvertBack
+        Return System.Windows.Data.Binding.DoNothing
+    End Function
+End Class
+
+' Converter per Boolean to FontWeight
+Public Class BooleanToFontWeightConverter
+    Implements System.Windows.Data.IValueConverter
+
+    Public Function Convert(value As Object, targetType As Type, parameter As Object, culture As Globalization.CultureInfo) As Object Implements System.Windows.Data.IValueConverter.Convert
+        If TypeOf value Is Boolean AndAlso CBool(value) Then
+            Return FontWeights.Bold
+        End If
+        Return FontWeights.Normal
+    End Function
+
+    Public Function ConvertBack(value As Object, targetType As Type, parameter As Object, culture As Globalization.CultureInfo) As Object Implements System.Windows.Data.IValueConverter.ConvertBack
+        Return System.Windows.Data.Binding.DoNothing
+    End Function
+End Class
 
 Class MainWindow
     Implements INotifyPropertyChanged
@@ -50,6 +99,8 @@ Class MainWindow
 
     Private _isChatCollapsed As Boolean = False
     Private _originalChatWidth As Double = 3 ' Valore originale della colonna chat (3*)
+
+    Private _recipients As New ObservableCollection(Of RecipientItem)()
 
     Public Event PropertyChanged As PropertyChangedEventHandler Implements INotifyPropertyChanged.PropertyChanged
 
@@ -88,6 +139,11 @@ Class MainWindow
         ' IMPORTANTE: InitializeComponent deve essere la PRIMA chiamata
         InitializeComponent()
 
+        ' tolto perchè sono già nel xaml, e comunque devono essere creati prima di InitializeComponent se usati lì
+        '' Registra i converter nelle risorse
+        'Me.Resources.Add("BooleanToBorderThicknessConverter", New BooleanToBorderThicknessConverter())
+        'Me.Resources.Add("BooleanToFontWeightConverter", New BooleanToFontWeightConverter())
+
         ' Inizializza DataContext DOPO InitializeComponent
         Me.DataContext = Me
 
@@ -96,6 +152,11 @@ Class MainWindow
         InitializeScreenShare()
 
         InitializeParticipantsAndChat()
+
+        ' 👇 AGGIUNGI QUESTO DEBUG
+        Debug.Print("=== DEBUG RECIPIENTS ===")
+        Debug.Print($"Recipients count all'inizio: {_recipients.Count}")
+        Debug.Print("=========================")
 
         ' Inizializza UI
         UpdateUI()
@@ -136,75 +197,75 @@ Class MainWindow
 
             ' Configura gestione errori video
             AddHandler _videoManager.OnVideoError,
-                Sub(errorMessage)
-                    Dispatcher.Invoke(Sub()
-                                          MessageBox.Show($"Errore video: {errorMessage}",
-                                                        "Errore Video", MessageBoxButton.OK, MessageBoxImage.Error)
-                                          _isVideoStarted = False
-                                          UpdateUI()
-                                      End Sub)
-                End Sub
+            Sub(errorMessage)
+                Dispatcher.Invoke(Sub()
+                                      System.Windows.MessageBox.Show($"Errore video: {errorMessage}",
+                                                    "Errore Video", MessageBoxButton.OK, MessageBoxImage.Error)
+                                      _isVideoStarted = False
+                                      UpdateUI()
+                                  End Sub)
+            End Sub
 
             ' Configura eventi di avvio/arresto video
             AddHandler _videoManager.OnVideoStarted,
-                Sub()
-                    Dispatcher.Invoke(Sub()
-                                          _isVideoStarted = True
-                                          txtStatus.Text = "Connesso - Video attivo"
-                                          txtVideoStatus.Text = "Video: Attivo"
-                                          txtVideoStatus.Foreground = System.Windows.Media.Brushes.Green
-                                          UpdateUI()
-                                      End Sub)
-                End Sub
+            Sub()
+                Dispatcher.Invoke(Sub()
+                                      _isVideoStarted = True
+                                      txtStatus.Text = "Connesso - Video attivo"
+                                      txtVideoStatus.Text = "Video: Attivo"
+                                      txtVideoStatus.Foreground = System.Windows.Media.Brushes.Green
+                                      UpdateUI()
+                                  End Sub)
+            End Sub
 
             AddHandler _videoManager.OnVideoStopped,
-                Sub()
-                    Dispatcher.Invoke(Sub()
-                                          _isVideoStarted = False
-                                          txtStatus.Text = "Connesso - Video fermato"
-                                          txtVideoStatus.Text = "Video: Disattivo"
-                                          txtVideoStatus.Foreground = System.Windows.Media.Brushes.Red
-                                          UpdateUI()
-                                      End Sub)
-                End Sub
+            Sub()
+                Dispatcher.Invoke(Sub()
+                                      _isVideoStarted = False
+                                      txtStatus.Text = "Connesso - Video fermato"
+                                      txtVideoStatus.Text = "Video: Disattivo"
+                                      txtVideoStatus.Foreground = System.Windows.Media.Brushes.Red
+                                      UpdateUI()
+                                  End Sub)
+            End Sub
 
             ' Configura aggiornamento frame video
             AddHandler _videoManager.OnLocalFrameUpdated,
-                Sub(bitmap)
-                    Dispatcher.Invoke(Sub()
-                                          If bitmap IsNot Nothing Then
-                                              localVideoImage.Source = bitmap
-                                              txtLocalVideoPlaceholder.Visibility = Visibility.Collapsed
-                                          End If
-                                      End Sub)
-                End Sub
-
-            ' Configura evento per invio frame
-            AddHandler _videoManager.OnFrameReadyToSend,
-            Sub(frameData As Byte(), width As Integer, height As Integer)
-                If _isVideoStarted AndAlso IsConnected Then
-                    SendVideoFrame(frameData, width, height)
-                End If
-            End Sub
-
-            AddHandler _videoManager.OnRemoteFrameUpdated,
             Sub(bitmap)
                 Dispatcher.Invoke(Sub()
-                                      Debug.Print($"DEBUG: OnRemoteFrameUpdated event fired, bitmap is Nothing: {bitmap Is Nothing}")
-
                                       If bitmap IsNot Nothing Then
-                                          ' Imposta direttamente l'immagine (bypassa il binding temporaneamente)
-                                          remoteVideoImage.Source = bitmap
-                                          txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
-
-                                          ' Notifica anche il cambio della proprietà per il binding
-                                          OnPropertyChanged(NameOf(RemoteVideoSource))
-                                          Debug.Print("DEBUG: Remote frame set directly and property notified")
-                                      Else
-                                          Debug.Print("DEBUG: Remote bitmap is Nothing!")
+                                          localVideoImage.Source = bitmap
+                                          txtLocalVideoPlaceholder.Visibility = Visibility.Collapsed
                                       End If
                                   End Sub)
             End Sub
+
+            ' Configura evento per invio frame
+            AddHandler _videoManager.OnFrameReadyToSend,
+        Sub(frameData As Byte(), width As Integer, height As Integer)
+            If _isVideoStarted AndAlso IsConnected Then
+                SendVideoFrame(frameData, width, height)
+            End If
+        End Sub
+
+            AddHandler _videoManager.OnRemoteFrameUpdated,
+        Sub(bitmap)
+            Dispatcher.Invoke(Sub()
+                                  Debug.Print($"DEBUG: OnRemoteFrameUpdated event fired, bitmap is Nothing: {bitmap Is Nothing}")
+
+                                  If bitmap IsNot Nothing Then
+                                      ' Imposta direttamente l'immagine (bypassa il binding temporaneamente)
+                                      remoteVideoImage.Source = bitmap
+                                      txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+
+                                      ' Notifica anche il cambio della proprietà per il binding
+                                      OnPropertyChanged(NameOf(RemoteVideoSource))
+                                      Debug.Print("DEBUG: Remote frame set directly and property notified")
+                                  Else
+                                      Debug.Print("DEBUG: Remote bitmap is Nothing!")
+                                  End If
+                              End Sub)
+        End Sub
 
             ' Configura timer per invio frame periodico
             _frameSendTimer = New Timers.Timer(100) ' 10 FPS per l'invio
@@ -215,52 +276,52 @@ Class MainWindow
 
             ' Configura eventi audio
             AddHandler _videoManager.OnAudioStarted,
-                Sub()
-                    Dispatcher.Invoke(Sub()
-                                          _isAudioStarted = True
-                                          txtStatus.Text = "Connesso - Video e Audio attivi"
-                                          txtAudioStatus.Text = "Audio: Attivo"
-                                          txtAudioStatus.Foreground = System.Windows.Media.Brushes.Green
-                                          UpdateUI()
-                                      End Sub)
-                End Sub
+            Sub()
+                Dispatcher.Invoke(Sub()
+                                      _isAudioStarted = True
+                                      txtStatus.Text = "Connesso - Video e Audio attivi"
+                                      txtAudioStatus.Text = "Audio: Attivo"
+                                      txtAudioStatus.Foreground = System.Windows.Media.Brushes.Green
+                                      UpdateUI()
+                                  End Sub)
+            End Sub
 
             AddHandler _videoManager.OnAudioStopped,
-                Sub()
-                    Dispatcher.Invoke(Sub()
-                                          _isAudioStarted = False
-                                          txtAudioStatus.Text = "Audio: Disattivo"
-                                          txtAudioStatus.Foreground = System.Windows.Media.Brushes.Red
-                                          UpdateUI()
-                                      End Sub)
-                End Sub
+            Sub()
+                Dispatcher.Invoke(Sub()
+                                      _isAudioStarted = False
+                                      txtAudioStatus.Text = "Audio: Disattivo"
+                                      txtAudioStatus.Foreground = System.Windows.Media.Brushes.Red
+                                      UpdateUI()
+                                  End Sub)
+            End Sub
 
             AddHandler _videoManager.OnAudioError,
-                Sub(errorMessage)
-                    Dispatcher.Invoke(Sub()
-                                          MessageBox.Show($"Errore audio: {errorMessage}",
-                                                        "Errore Audio", MessageBoxButton.OK, MessageBoxImage.Error)
-                                      End Sub)
-                End Sub
+            Sub(errorMessage)
+                Dispatcher.Invoke(Sub()
+                                      System.Windows.MessageBox.Show($"Errore audio: {errorMessage}",
+                                                    "Errore Audio", MessageBoxButton.OK, MessageBoxImage.Error)
+                                  End Sub)
+            End Sub
 
             AddHandler _videoManager.OnAudioDataReady,
-                Sub(audioData As Byte())
-                    Debug.Print($"*** MAIN: OnAudioDataReady ricevuto - {audioData.Length} bytes")
+            Sub(audioData As Byte())
+                Debug.Print($"*** MAIN: OnAudioDataReady ricevuto - {audioData.Length} bytes")
 
-                    ' Invia agli altri client - USA DISPATCHER PER ACCEDERE A PROPRIETÀ UI
-                    Dispatcher.Invoke(Sub()
-                                          If IsConnected AndAlso Not String.IsNullOrEmpty(_remoteConnectionId) Then
-                                              Debug.Print($"*** MAIN: Chiamo SendAudioData, remoteId: {_remoteConnectionId}")
-                                              SendAudioData(audioData)
-                                          Else
-                                              Debug.Print($"*** MAIN: Non posso inviare audio - IsConnected={IsConnected}, RemoteId={_remoteConnectionId}")
-                                          End If
-                                      End Sub)
-                End Sub
+                ' Invia agli altri client - USA DISPATCHER PER ACCEDERE A PROPRIETÀ UI
+                Dispatcher.Invoke(Sub()
+                                      If IsConnected AndAlso Not String.IsNullOrEmpty(_remoteConnectionId) Then
+                                          Debug.Print($"*** MAIN: Chiamo SendAudioData, remoteId: {_remoteConnectionId}")
+                                          SendAudioData(audioData)
+                                      Else
+                                          Debug.Print($"*** MAIN: Non posso inviare audio - IsConnected={IsConnected}, RemoteId={_remoteConnectionId}")
+                                      End If
+                                  End Sub)
+            End Sub
 
         Catch ex As Exception
-            MessageBox.Show($"Errore nell'inizializzazione video: {ex.Message}",
-                          "Errore Inizializzazione", MessageBoxButton.OK, MessageBoxImage.Error)
+            System.Windows.MessageBox.Show($"Errore nell'inizializzazione video: {ex.Message}",
+                      "Errore Inizializzazione", MessageBoxButton.OK, MessageBoxImage.Error)
         End Try
     End Sub
 
@@ -272,40 +333,40 @@ Class MainWindow
             End If
 
             AddHandler _screenShareManager.OnScreenError,
-            Sub(errorMessage)
-                Dispatcher.Invoke(Sub()
-                                      MessageBox.Show($"Errore condivisione schermo: {errorMessage}",
-                                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
-                                  End Sub)
-            End Sub
+        Sub(errorMessage)
+            Dispatcher.Invoke(Sub()
+                                  System.Windows.MessageBox.Show($"Errore condivisione schermo: {errorMessage}",
+                              "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+                              End Sub)
+        End Sub
 
             AddHandler _screenShareManager.OnScreenShareStarted,
-            Sub()
-                Dispatcher.Invoke(Sub()
-                                      _isSharingScreen = True
-                                      txtStatus.Text = "Condivisione schermo attiva"
-                                      'txtScreenSharePlaceholder.Visibility = Visibility.Collapsed
-                                      UpdateUI()
-                                  End Sub)
-            End Sub
+        Sub()
+            Dispatcher.Invoke(Sub()
+                                  _isSharingScreen = True
+                                  txtStatus.Text = "Condivisione schermo attiva"
+                                  'txtScreenSharePlaceholder.Visibility = Visibility.Collapsed
+                                  UpdateUI()
+                              End Sub)
+        End Sub
 
             AddHandler _screenShareManager.OnScreenShareStopped,
-            Sub()
-                Dispatcher.Invoke(Sub()
-                                      _isSharingScreen = False
-                                      txtStatus.Text = "Condivisione schermo fermata"
-                                      txtScreenSharePlaceholder.Visibility = Visibility.Visible
-                                      screenShareImage.Source = Nothing
-                                      UpdateUI()
-                                  End Sub)
-            End Sub
+        Sub()
+            Dispatcher.Invoke(Sub()
+                                  _isSharingScreen = False
+                                  txtStatus.Text = "Condivisione schermo fermata"
+                                  txtScreenSharePlaceholder.Visibility = Visibility.Visible
+                                  screenShareImage.Source = Nothing
+                                  UpdateUI()
+                              End Sub)
+        End Sub
 
             AddHandler _screenShareManager.OnScreenFrameReady,
-            Sub(frameData As Byte(), width As Integer, height As Integer)
-                If IsConnected AndAlso Not String.IsNullOrEmpty(_remoteConnectionId) Then
-                    SendScreenFrame(frameData, width, height)
-                End If
-            End Sub
+        Sub(frameData As Byte(), width As Integer, height As Integer)
+            If IsConnected AndAlso Not String.IsNullOrEmpty(_remoteConnectionId) Then
+                SendScreenFrame(frameData, width, height)
+            End If
+        End Sub
 
             '' Aggiornamento preview locale dello schermo
             'AddHandler _screenShareManager.PropertyChanged,
@@ -319,19 +380,19 @@ Class MainWindow
 
             ' Handler per posizione cursore
             AddHandler _screenShareManager.OnCursorPositionChanged,
-            Sub(x As Integer, y As Integer)
-                If IsConnected AndAlso _isSharingScreen Then
-                    ' Invia coordinate al server
-                    SendCursorPosition(x, y)
-                End If
-            End Sub
+        Sub(x As Integer, y As Integer)
+            If IsConnected AndAlso _isSharingScreen Then
+                ' Invia coordinate al server
+                SendCursorPosition(x, y)
+            End If
+        End Sub
 
             AddHandler _screenShareManager.OnScreenDimensionsReady,
-                Sub(width As Integer, height As Integer)
-                    If IsConnected Then
-                        _connection.InvokeAsync("SendScreenDimensions", txtRoomId.Text, width, height)
-                    End If
-                End Sub
+            Sub(width As Integer, height As Integer)
+                If IsConnected Then
+                    _connection.InvokeAsync("SendScreenDimensions", txtRoomId.Text, width, height)
+                End If
+            End Sub
 
             ' Inizializza il cursore remoto
             InitializeRemoteCursor()
@@ -339,8 +400,8 @@ Class MainWindow
             Debug.Print("ScreenShareManager initialized")
 
         Catch ex As Exception
-            MessageBox.Show($"Errore inizializzazione screen share: {ex.Message}",
-                      "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+            System.Windows.MessageBox.Show($"Errore inizializzazione screen share: {ex.Message}",
+                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
         End Try
     End Sub
 
@@ -398,86 +459,125 @@ Class MainWindow
             ' Crea un handler HTTP che accetta qualsiasi certificato
             Dim httpHandler As New HttpClientHandler()
             httpHandler.ServerCertificateCustomValidationCallback =
-            Function(senderObj As Object, certificate As X509Certificate2, chain As X509Chain, sslPolicyErrors As SslPolicyErrors)
-                Console.WriteLine($"SSL Policy Errors: {sslPolicyErrors}")
-                Console.WriteLine($"Certificato: {certificate?.Subject}")
-                ' ACCETTA TUTTO PER DEBUG
-                Return True
-            End Function
+                    Function(senderObj As Object, certificate As X509Certificate2, chain As X509Chain, sslPolicyErrors As SslPolicyErrors)
+                        Console.WriteLine($"SSL Policy Errors: {sslPolicyErrors}")
+                        Console.WriteLine($"Certificato: {certificate?.Subject}")
+                        ' ACCETTA TUTTO PER DEBUG
+                        Return True
+                    End Function
 
             ' Opzioni per la connessione
             Dim connectionOptions = New Action(Of Microsoft.AspNetCore.Http.Connections.Client.HttpConnectionOptions)(
-            Sub(options)
-                options.HttpMessageHandlerFactory = Function(inner) httpHandler
-                ' Aumenta timeout per debug
-                options.CloseTimeout = TimeSpan.FromSeconds(60)
-            End Sub)
+                    Sub(options)
+                        options.HttpMessageHandlerFactory = Function(inner) httpHandler
+                        ' Aumenta timeout per debug
+                        options.CloseTimeout = TimeSpan.FromSeconds(60)
+                    End Sub)
 
             txtStatus.Text = "Connessione in corso..."
 
+            ' SE GIÀ CONNESSO, PRIMA DISCONNETTI
+            If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
+                Await _connection.StopAsync()
+                Await _connection.DisposeAsync()
+                _connection = Nothing
+            End If
+
             ' Crea la connessione con le opzioni custom
             _connection = New HubConnectionBuilder().
-                                WithUrl(txtServerUrl.Text.Trim() & "/conferencehub", connectionOptions).
-                                WithAutomaticReconnect().
-                                ConfigureLogging(Sub(logging As ILoggingBuilder)
-                                                     logging.AddDebug()
-                                                     logging.SetMinimumLevel(LogLevel.Warning)  ' Solo warning ed errori
-                                                 End Sub).
-                                WithServerTimeout(TimeSpan.FromSeconds(60)).          ' Timeout server
-                                WithKeepAliveInterval(TimeSpan.FromSeconds(15)).      ' Keep-alive
-                                Build()
+                            WithUrl(txtServerUrl.Text.Trim() & "/conferencehub", connectionOptions).
+                            WithAutomaticReconnect().
+                            ConfigureLogging(Sub(logging As ILoggingBuilder)
+                                                 logging.AddDebug()
+                                                 logging.SetMinimumLevel(LogLevel.Warning)  ' Solo warning ed errori
+                                             End Sub).
+                            WithServerTimeout(TimeSpan.FromSeconds(60)).          ' Timeout server
+                            WithKeepAliveInterval(TimeSpan.FromSeconds(15)).      ' Keep-alive
+                            Build()
 
             ' Configura gli handler degli eventi dal server
             _connection.On("UserJoined",
-                Sub(connectionId As String, userName As String)
-                    Dispatcher.Invoke(Sub()
-                                          _remoteConnectionId = connectionId
-                                          txtStatus.Text = $"{userName} si è unito alla stanza"
-                                          'MessageBox.Show($"Benvenuto {userName}!", "Nuovo Utente", MessageBoxButton.OK, MessageBoxImage.Information)
-                                      End Sub)
-                End Sub)
+            Sub(connectionId As String, userName As String)
+                Dispatcher.Invoke(Sub()
+                                      _remoteConnectionId = connectionId
+                                      txtStatus.Text = $"{userName} si è unito alla stanza"
+                                      'MessageBox.Show($"Benvenuto {userName}!", "Nuovo Utente", MessageBoxButton.OK, MessageBoxImage.Information)
+                                  End Sub)
+            End Sub)
 
             _connection.On("UserLeft",
-                Sub(connectionId As String)
-                    Dispatcher.Invoke(Sub()
-                                          If _remoteConnectionId = connectionId Then
-                                              _remoteConnectionId = ""
-                                              txtStatus.Text = "Utente remoto disconnesso"
-                                              'MessageBox.Show("L'utente remoto ha lasciato la stanza.", "Utente Disconnesso", MessageBoxButton.OK, MessageBoxImage.Warning)
-                                          End If
-                                      End Sub)
-                End Sub)
+            Sub(connectionId As String)
+                Dispatcher.Invoke(Sub()
+                                      If _remoteConnectionId = connectionId Then
+                                          _remoteConnectionId = ""
+                                          txtStatus.Text = "Utente remoto disconnesso"
+                                          'MessageBox.Show("L'utente remoto ha lasciato la stanza.", "Utente Disconnesso", MessageBoxButton.OK, MessageBoxImage.Warning)
+                                      End If
+                                  End Sub)
+            End Sub)
 
             _connection.On("ExistingUsers",
-                Sub(users As Object)
-                    Dispatcher.Invoke(Sub()
-                                          txtStatus.Text = "Connesso alla stanza"
-                                          Debug.Print($"Utenti esistenti: {users}")
-                                      End Sub)
-                End Sub)
+            Sub(users As Object)
+                Dispatcher.Invoke(Sub()
+                                      txtStatus.Text = "Connesso alla stanza"
+                                      Debug.Print($"Utenti esistenti: {users}")
+                                  End Sub)
+            End Sub)
 
             ' Aggiungi anche handler per errori di connessione
             AddHandler _connection.Closed,
-                Async Function(err)
-                    Await Dispatcher.InvokeAsync(Sub()
-                                                     IsConnected = False
-                                                     txtStatus.Text = "Connessione chiusa"
-                                                     If err IsNot Nothing Then
-                                                         Debug.Print($"Errore di connessione: {err.Message}")
-                                                     End If
-                                                 End Sub)
-                    Return Task.CompletedTask
-                End Function
+            Async Function(err)
+                Await Dispatcher.InvokeAsync(Sub()
+                                                 IsConnected = False
+                                                 txtStatus.Text = "Connessione chiusa"
+                                                 If err IsNot Nothing Then
+                                                     Debug.Print($"Errore di connessione: {err.Message}")
+                                                 End If
+                                             End Sub)
+                Return Task.CompletedTask
+            End Function
 
             ' ===== HANDLER PER SCREEN SHARE - CON LOG DETTAGLIATO =====
             _connection.On(Of String, Byte(), Integer, Integer)("ReceiveScreenFrame",
-                        Sub(senderConnectionId, frameData, width, height)
-                            Debug.Print($"*** SCREEN SHARE DEBUG: Ricevuto frame da {senderConnectionId}, {width}x{height}, {frameData.Length} bytes")
+                    Sub(senderConnectionId, frameData, width, height)
+                        Debug.Print($"*** SCREEN SHARE DEBUG: Ricevuto frame da {senderConnectionId}, {width}x{height}, {frameData.Length} bytes")
 
+                        Dispatcher.Invoke(Sub()
+                                              Try
+                                                  If frameData IsNot Nothing AndAlso frameData.Length > 0 Then
+                                                      ' Converti JPEG in BitmapImage
+                                                      Dim bitmapImage As New BitmapImage()
+                                                      Using stream = New IO.MemoryStream(frameData)
+                                                          bitmapImage.BeginInit()
+                                                          bitmapImage.CacheOption = BitmapCacheOption.OnLoad
+                                                          bitmapImage.StreamSource = stream
+                                                          bitmapImage.EndInit()
+                                                          bitmapImage.Freeze()
+                                                      End Using
+
+                                                      ' Mostra nell'immagine remota
+                                                      screenShareImage.Source = bitmapImage
+                                                      UpdateScreenShareContainer(width, height)
+                                                      txtScreenSharePlaceholder.Visibility = Visibility.Collapsed
+
+                                                      Debug.Print($"*** SCREEN SHARE DEBUG: Immagine mostrata con successo")
+                                                  Else
+                                                      Debug.Print($"*** SCREEN SHARE DEBUG: frameData nullo o vuoto")
+                                                  End If
+                                              Catch ex As Exception
+                                                  Debug.Print($"*** SCREEN SHARE DEBUG: Errore visualizzazione: {ex.Message}")
+                                              End Try
+                                          End Sub)
+                    End Sub)
+
+            ' Handler per ReceiveVideoFrame - AGGIORNA ANTEPRIME
+            _connection.On(Of String, Byte(), Integer, Integer)("ReceiveVideoFrame",
+                        Sub(senderConnectionId, frameData, width, height)
                             Dispatcher.Invoke(Sub()
                                                   Try
+                                                      Debug.Print($"Ricevuto video frame da {senderConnectionId}, {width}x{height}, {frameData.Length} bytes")
                                                       If frameData IsNot Nothing AndAlso frameData.Length > 0 Then
-                                                          ' Converti JPEG in BitmapImage
+                                                          ' Converti in BitmapImage
                                                           Dim bitmapImage As New BitmapImage()
                                                           Using stream = New IO.MemoryStream(frameData)
                                                               bitmapImage.BeginInit()
@@ -487,457 +587,413 @@ Class MainWindow
                                                               bitmapImage.Freeze()
                                                           End Using
 
-                                                          ' Mostra nell'immagine remota
-                                                          screenShareImage.Source = bitmapImage
-                                                          UpdateScreenShareContainer(width, height)
-                                                          txtScreenSharePlaceholder.Visibility = Visibility.Collapsed
+                                                          ' Salva il sender come remoteConnectionId se non già impostato
+                                                          'If String.IsNullOrEmpty(_remoteConnectionId) Then
+                                                          _remoteConnectionId = senderConnectionId
+                                                          'End If
 
-                                                          Debug.Print($"*** SCREEN SHARE DEBUG: Immagine mostrata con successo")
-                                                      Else
-                                                          Debug.Print($"*** SCREEN SHARE DEBUG: frameData nullo o vuoto")
+                                                          ' IMPORTANTE: Aggiorna remoteVideoImage (colonna destra)
+                                                          remoteVideoImage.Source = bitmapImage
+                                                          txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+
+                                                          '' Se è il remote principale, aggiorna remoteVideoImage
+                                                          'If senderConnectionId = _remoteConnectionId Then
+                                                          '    'remoteVideoImage.Source = bitmapImage
+                                                          '    'txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
+
+                                                          '    ' Aggiorna anche nella lista partecipanti
+                                                          '    Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                                          '    If participant IsNot Nothing Then
+                                                          '        participant.VideoSource = bitmapImage
+                                                          '        participant.HasVideo = True
+                                                          '    End If
+                                                          'End If
+
+                                                          ' Se vuoi anche aggiornare l'anteprima nella lista partecipanti
+                                                          Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                                          If participant IsNot Nothing Then
+                                                              participant.VideoSource = bitmapImage
+                                                              participant.HasVideo = True
+                                                          End If
+
+                                                          ' AGGIUNGI ALLA LISTA ANTEPRIME (per icRemoteWebcams)
+                                                          ' Qui puoi implementare un ItemsControl separato per le anteprime
+                                                          UpdateRemoteWebcamPreview(senderConnectionId, bitmapImage)
                                                       End If
                                                   Catch ex As Exception
-                                                      Debug.Print($"*** SCREEN SHARE DEBUG: Errore visualizzazione: {ex.Message}")
+                                                      Debug.Print($"Error processing remote video: {ex.Message}")
                                                   End Try
                                               End Sub)
                         End Sub)
 
-            '' Aggiungi handler per ricevere frame video
-            '_connection.On("ReceiveVideoFrame",
-            'Sub(senderConnectionId As String, frameData As Byte(), width As Integer, height As Integer)
-            '    Debug.Print($"DEBUG: Ricevuto frame da {senderConnectionId}, dimensione: {frameData?.Length} bytes")
-            '    Dispatcher.Invoke(Sub()
-            '                          ' Aggiorna il video remoto
-            '                          If _videoManager IsNot Nothing Then
-            '                              _videoManager.ReceiveRemoteFrame(frameData, width, height)
-            '                              txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
-
-            '                              ' Forza l'aggiornamento dell'UI
-            '                              remoteVideoImage.InvalidateVisual()
-            '                              Debug.Print("DEBUG: ReceiveRemoteFrame called")
-            '                          Else
-            '                              Debug.Print("DEBUG: VideoManager è null!")
-            '                          End If
-
-            '                          ' Aggiorna lo stato
-            '                          If String.IsNullOrEmpty(_remoteConnectionId) Then
-            '                              _remoteConnectionId = senderConnectionId
-            '                          End If
-            '                      End Sub)
-            'End Sub)
-
-            ' Handler per ReceiveVideoFrame - AGGIORNA ANTEPRIME
-            _connection.On(Of String, Byte(), Integer, Integer)("ReceiveVideoFrame",
-                            Sub(senderConnectionId, frameData, width, height)
-                                Dispatcher.Invoke(Sub()
-                                                      Try
-                                                          Debug.Print($"Ricevuto video frame da {senderConnectionId}, {width}x{height}, {frameData.Length} bytes")
-                                                          If frameData IsNot Nothing AndAlso frameData.Length > 0 Then
-                                                              ' Converti in BitmapImage
-                                                              Dim bitmapImage As New BitmapImage()
-                                                              Using stream = New IO.MemoryStream(frameData)
-                                                                  bitmapImage.BeginInit()
-                                                                  bitmapImage.CacheOption = BitmapCacheOption.OnLoad
-                                                                  bitmapImage.StreamSource = stream
-                                                                  bitmapImage.EndInit()
-                                                                  bitmapImage.Freeze()
-                                                              End Using
-
-                                                              ' Salva il sender come remoteConnectionId se non già impostato
-                                                              'If String.IsNullOrEmpty(_remoteConnectionId) Then
-                                                              _remoteConnectionId = senderConnectionId
-                                                              'End If
-
-                                                              ' IMPORTANTE: Aggiorna remoteVideoImage (colonna destra)
-                                                              remoteVideoImage.Source = bitmapImage
-                                                              txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
-
-                                                              '' Se è il remote principale, aggiorna remoteVideoImage
-                                                              'If senderConnectionId = _remoteConnectionId Then
-                                                              '    'remoteVideoImage.Source = bitmapImage
-                                                              '    'txtRemoteVideoPlaceholder.Visibility = Visibility.Collapsed
-
-                                                              '    ' Aggiorna anche nella lista partecipanti
-                                                              '    Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
-                                                              '    If participant IsNot Nothing Then
-                                                              '        participant.VideoSource = bitmapImage
-                                                              '        participant.HasVideo = True
-                                                              '    End If
-                                                              'End If
-
-                                                              ' Se vuoi anche aggiornare l'anteprima nella lista partecipanti
-                                                              Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
-                                                              If participant IsNot Nothing Then
-                                                                  participant.VideoSource = bitmapImage
-                                                                  participant.HasVideo = True
-                                                              End If
-
-                                                              ' AGGIUNGI ALLA LISTA ANTEPRIME (per icRemoteWebcams)
-                                                              ' Qui puoi implementare un ItemsControl separato per le anteprime
-                                                              UpdateRemoteWebcamPreview(senderConnectionId, bitmapImage)
-                                                          End If
-                                                      Catch ex As Exception
-                                                          Debug.Print($"Error processing remote video: {ex.Message}")
-                                                      End Try
-                                                  End Sub)
-                            End Sub)
-
             ' Handler per ricevere audio
             _connection.On(Of String, Byte())("ReceiveAudioData",
-                                    Sub(senderConnectionId As String, audioData As Byte())
-                                        Debug.Print($"*** AUDIO DEBUG: Ricevuti {audioData?.Length} bytes da {senderConnectionId}")
+                                Sub(senderConnectionId As String, audioData As Byte())
+                                    Debug.Print($"*** AUDIO DEBUG: Ricevuti {audioData?.Length} bytes da {senderConnectionId}")
 
-                                        ' IMPORTANTE: Usa Dispatcher per aggiornare UI
-                                        Dispatcher.Invoke(Sub()
-                                                              If _videoManager IsNot Nothing Then
-                                                                  Debug.Print("*** AUDIO DEBUG: Chiamo ReceiveRemoteAudio")
-                                                                  _videoManager.ReceiveRemoteAudio(audioData)
-                                                              Else
-                                                                  Debug.Print("*** AUDIO DEBUG: _videoManager è null!")
-                                                              End If
-                                                          End Sub)
-                                    End Sub)
+                                    ' IMPORTANTE: Usa Dispatcher per aggiornare UI
+                                    Dispatcher.Invoke(Sub()
+                                                          If _videoManager IsNot Nothing Then
+                                                              Debug.Print("*** AUDIO DEBUG: Chiamo ReceiveRemoteAudio")
+                                                              _videoManager.ReceiveRemoteAudio(audioData)
+                                                          Else
+                                                              Debug.Print("*** AUDIO DEBUG: _videoManager è null!")
+                                                          End If
+                                                      End Sub)
+                                End Sub)
 
             ' Handler per UserJoined - AGGIORNA LISTA PARTECIPANTI
             _connection.On(Of String, String)("UserJoined",
-                                    Sub(connectionId, userName)
-                                        Debug.Print($"UserJoined: {userName} ({connectionId})")
+                                Sub(connectionId, userName)
+                                    Debug.Print($"UserJoined: {userName} ({connectionId})")
 
-                                        Dispatcher.Invoke(Sub()
-                                                              ' IMPORTANTE: Se non ho ancora un remote, questo è il mio remote
-                                                              'If String.IsNullOrEmpty(_remoteConnectionId) Then
-                                                              _remoteConnectionId = connectionId
-                                                              'End If
+                                    Dispatcher.Invoke(Sub()
+                                                          ' IMPORTANTE: Se non ho ancora un remote, questo è il mio remote
+                                                          'If String.IsNullOrEmpty(_remoteConnectionId) Then
+                                                          _remoteConnectionId = connectionId
+                                                          'End If
 
-                                                              ' Aggiungi alla lista partecipanti
-                                                              Dim participant As New Participant With {
-                                                                                                        .ConnectionId = connectionId,
-                                                                                                        .UserName = userName,
-                                                                                                        .HasVideo = False,
-                                                                                                        .HasAudio = False
-                                                                                                        }
-                                                              _participants.Add(participant)
+                                                          ' Aggiungi alla lista partecipanti
+                                                          Dim participant As New Participant With {
+                                                                                                    .ConnectionId = connectionId,
+                                                                                                    .UserName = userName,
+                                                                                                    .HasVideo = False,
+                                                                                                    .HasAudio = False
+                                                                                                    }
+                                                          _participants.Add(participant)
 
-                                                              ' Aggiorna GroupBox header
-                                                              UpdateParticipantsHeader()
-                                                          End Sub)
-                                    End Sub)
+                                                          ' Aggiorna GroupBox header
+                                                          UpdateParticipantsHeader()
+                                                      End Sub)
+                                End Sub)
 
             ' Handler per UserLeft - RIMUOVI DALLA LISTA
             _connection.On(Of String)("UserLeft",
-                        Sub(connectionId)
-                            Debug.Print($"UserLeft: {connectionId}")
-                            Dispatcher.Invoke(Sub()
-                                                  'Se era il remote principale, pulisci
-                                                  'If connectionId = _remoteConnectionId Then
-                                                  localVideoImage.Source = Nothing
-                                                  remoteVideoImage.Source = Nothing
-                                                  txtRemoteVideoPlaceholder.Visibility = Visibility.Visible
-                                                  _remoteConnectionId = ""
-                                                  'End If
+                    Sub(connectionId)
+                        Debug.Print($"UserLeft: {connectionId}")
+                        Dispatcher.Invoke(Sub()
+                                              'Se era il remote principale, pulisci
+                                              'If connectionId = _remoteConnectionId Then
+                                              localVideoImage.Source = Nothing
+                                              remoteVideoImage.Source = Nothing
+                                              txtRemoteVideoPlaceholder.Visibility = Visibility.Visible
+                                              _remoteConnectionId = ""
+                                              'End If
 
-                                                  ' Rimuovi dalla lista
-                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
-                                                  If participant IsNot Nothing Then
-                                                      _participants.Remove(participant)
-                                                  End If
+                                              ' Rimuovi dalla lista
+                                              Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
+                                              If participant IsNot Nothing Then
+                                                  _participants.Remove(participant)
+                                              End If
 
-                                                  ' Rimuovi anche dalle anteprime
-                                                  If _remoteVideoSources.ContainsKey(connectionId) Then
-                                                      _remoteVideoSources.Remove(connectionId)
-                                                  End If
+                                              ' Rimuovi anche dalle anteprime
+                                              If _remoteVideoSources.ContainsKey(connectionId) Then
+                                                  _remoteVideoSources.Remove(connectionId)
+                                              End If
 
-                                                  ' Aggiorna GroupBox header
-                                                  UpdateParticipantsHeader()
+                                              ' Aggiorna GroupBox header
+                                              UpdateParticipantsHeader()
 
-                                                  '' Se era il remote principale, pulisci
-                                                  'If _remoteConnectionId = connectionId Then
-                                                  '    _remoteConnectionId = ""
-                                                  '    remoteVideoImage.Source = Nothing
-                                                  'End If
-                                              End Sub)
-                        End Sub)
-
-            ' Handler per ExistingUsers
-            '_connection.On(Of Object)("ExistingUsers",
-            '                Sub(users)
-            '                    Dispatcher.Invoke(Sub()
-            '                                          _participants.Clear()
-
-            '                                          ' Converte e aggiunge tutti gli utenti esistenti
-            '                                          If users IsNot Nothing Then
-            '                                              For Each user In users
-            '                                                  Dim connectionId = user.GetType().GetProperty("ConnectionId")?.GetValue(user)?.ToString()
-            '                                                  Dim userName = user.GetType().GetProperty("UserName")?.GetValue(user)?.ToString()
-
-            '                                                  If Not String.IsNullOrEmpty(connectionId) Then
-            '                                                      Dim participant As New Participant With {
-            '                                        .ConnectionId = connectionId,
-            '                                        .UserName = If(userName IsNot Nothing, userName, "Utente"),
-            '                                        .HasVideo = False,
-            '                                        .HasAudio = False
-            '                                    }
-            '                                                      _participants.Add(participant)
-            '                                                  End If
-            '                                              Next
-            '                                          End If
-
-            '                                          UpdateParticipantsHeader()
-            '                                      End Sub)
-            '                End Sub)
+                                              '' Se era il remote principale, pulisci
+                                              'If _remoteConnectionId = connectionId Then
+                                              '    _remoteConnectionId = ""
+                                              '    remoteVideoImage.Source = Nothing
+                                              'End If
+                                          End Sub)
+                    End Sub)
 
             _connection.On(Of System.Text.Json.JsonElement)("ExistingUsers",
-                            Sub(jsonElement)
-                                Dispatcher.Invoke(Sub()
-                                                      Dim usersList As New List(Of UserInfo)()
+                        Sub(jsonElement)
+                            Dispatcher.Invoke(Sub()
+                                                  Dim usersList As New List(Of UserInfo)()
 
-                                                      ' Verifica che sia un array
-                                                      If jsonElement.ValueKind = System.Text.Json.JsonValueKind.Array Then
-                                                          Debug.Print($"📋 È un array con {jsonElement.GetArrayLength()} elementi")
+                                                  ' Verifica che sia un array
+                                                  If jsonElement.ValueKind = System.Text.Json.JsonValueKind.Array Then
+                                                      Debug.Print($"📋 È un array con {jsonElement.GetArrayLength()} elementi")
 
-                                                          For Each item In jsonElement.EnumerateArray()
-                                                              Try
-                                                                  Dim user As New UserInfo()
+                                                      For Each item In jsonElement.EnumerateArray()
+                                                          Try
+                                                              Dim user As New UserInfo()
 
-                                                                  ' Estrai le proprietà in modo sicuro
-                                                                  Dim prop As System.Text.Json.JsonElement
-                                                                  If item.TryGetProperty("connectionId", prop) Then
-                                                                      user.ConnectionId = prop.GetString()
-                                                                  End If
+                                                              ' Estrai le proprietà in modo sicuro
+                                                              Dim prop As System.Text.Json.JsonElement
+                                                              If item.TryGetProperty("connectionId", prop) Then
+                                                                  user.ConnectionId = prop.GetString()
+                                                              End If
 
-                                                                  If item.TryGetProperty("userName", prop) Then
-                                                                      user.UserName = prop.GetString()
-                                                                  End If
+                                                              If item.TryGetProperty("userName", prop) Then
+                                                                  user.UserName = prop.GetString()
+                                                              End If
 
-                                                                  If item.TryGetProperty("hasVideo", prop) Then
-                                                                      user.HasVideo = prop.GetBoolean()
-                                                                  End If
+                                                              If item.TryGetProperty("hasVideo", prop) Then
+                                                                  user.HasVideo = prop.GetBoolean()
+                                                              End If
 
-                                                                  If item.TryGetProperty("hasAudio", prop) Then
-                                                                      user.HasAudio = prop.GetBoolean()
-                                                                  End If
+                                                              If item.TryGetProperty("hasAudio", prop) Then
+                                                                  user.HasAudio = prop.GetBoolean()
+                                                              End If
 
-                                                                  If item.TryGetProperty("isScreenSharing", prop) Then
-                                                                      user.IsScreenSharing = prop.GetBoolean()
-                                                                  End If
+                                                              If item.TryGetProperty("isScreenSharing", prop) Then
+                                                                  user.IsScreenSharing = prop.GetBoolean()
+                                                              End If
 
-                                                                  usersList.Add(user)
-                                                                  Debug.Print($"   - Aggiunto: {user.UserName}")
+                                                              usersList.Add(user)
+                                                              Debug.Print($"   - Aggiunto: {user.UserName}")
 
-                                                              Catch ex As Exception
-                                                                  Debug.Print($"   ❌ Errore su un elemento: {ex.Message}")
-                                                              End Try
-                                                          Next
-                                                      Else
-                                                          Debug.Print($"❌ JsonElement non è un array: {jsonElement.ValueKind}")
-                                                      End If
+                                                          Catch ex As Exception
+                                                              Debug.Print($"   ❌ Errore su un elemento: {ex.Message}")
+                                                          End Try
+                                                      Next
+                                                  Else
+                                                      Debug.Print($"❌ JsonElement non è un array: {jsonElement.ValueKind}")
+                                                  End If
 
-                                                      _participants.Clear()
+                                                  _participants.Clear()
 
-                                                      If usersList IsNot Nothing Then
-                                                          For Each user In usersList
-                                                              Dim participant As New Participant With {
-                                                                                                        .ConnectionId = user.ConnectionId,
-                                                                                                        .UserName = If(user.UserName IsNot Nothing, user.UserName, "Utente"),
-                                                                                                        .HasVideo = user.HasAudio,
-                                                                                                        .HasAudio = user.HasAudio,
-                                                                                                        .IsScreenSharing = user.IsScreenSharing
-                                                                                                    }
-                                                              _participants.Add(participant)
+                                                  If usersList IsNot Nothing Then
+                                                      For Each user In usersList
+                                                          Dim participant As New Participant With {
+                                                                                                    .ConnectionId = user.ConnectionId,
+                                                                                                    .UserName = If(user.UserName IsNot Nothing, user.UserName, "Utente"),
+                                                                                                    .HasVideo = user.HasAudio,
+                                                                                                    .HasAudio = user.HasAudio,
+                                                                                                    .IsScreenSharing = user.IsScreenSharing
+                                                                                                }
+                                                          _participants.Add(participant)
 
-                                                              ' IMPORTANTE: Se non ho remote e questo non sono io, impostalo
-                                                              'If String.IsNullOrEmpty(_remoteConnectionId) AndAlso user.ConnectionId <> _localConnectionId Then
-                                                              _remoteConnectionId = user.ConnectionId
-                                                              'Debug.Print($"✅ Impostato _remoteConnectionId da ExistingUsers: {user.ConnectionId}")
-                                                              'End If
-                                                          Next
-                                                      End If
+                                                          ' IMPORTANTE: Se non ho remote e questo non sono io, impostalo
+                                                          'If String.IsNullOrEmpty(_remoteConnectionId) AndAlso user.ConnectionId <> _localConnectionId Then
+                                                          _remoteConnectionId = user.ConnectionId
+                                                          'Debug.Print($"✅ Impostato _remoteConnectionId da ExistingUsers: {user.ConnectionId}")
+                                                          'End If
+                                                      Next
+                                                  End If
 
-                                                      UpdateParticipantsHeader()
-                                                  End Sub)
-                            End Sub)
+                                                  UpdateParticipantsHeader()
+                                              End Sub)
+                        End Sub)
 
             ' Handler per ricevere messaggi chat
             _connection.On(Of String, String, DateTime)("ReceiveChatMessage",
-                            Sub(userName, message, timestamp)
-                                Dispatcher.Invoke(Sub()
-                                                      Dim chatMsg As New ChatMessage With {
-                                                                                                .Sender = userName,
-                                                                                                .Message = message,
-                                                                                                .Timestamp = Format(timestamp, "dd/MM/yyyy HH:mm:ss")
-                                                                                            }
-                                                      _chatMessages.Add(chatMsg)
-
-                                                      ' Scroll in fondo
-                                                      If lstChat.Items.Count > 0 Then
-                                                          lstChat.ScrollIntoView(lstChat.Items(lstChat.Items.Count - 1))
-                                                      End If
-                                                  End Sub)
-                            End Sub)
-
-            _connection.On(Of List(Of UserInfo))("ParticipantsList",
-                            Sub(participantsList)
-                                Dispatcher.Invoke(Sub()
-                                                      Try
-                                                          Debug.Print($"ParticipantsList ricevuto con {participantsList?.Count} utenti")
-
-                                                          ' Pulisci la lista
-                                                          _participants.Clear()
-
-                                                          ' Processa la lista
-                                                          If participantsList IsNot Nothing Then
-                                                              For Each user In participantsList
-                                                                  Dim participant As New Participant With {
-                                                                                                            .ConnectionId = user.ConnectionId,
-                                                                                                            .UserName = If(user.UserName IsNot Nothing, user.UserName, "Utente"),
-                                                                                                            .HasVideo = user.HasVideo,
-                                                                                                            .HasAudio = user.HasAudio,
-                                                                                                            .IsScreenSharing = user.IsScreenSharing
-                                                                                                        }
-                                                                  _participants.Add(participant)
-                                                                  Debug.Print($"  - Aggiunto: {user.UserName} ({user.ConnectionId})")
-                                                              Next
-                                                          End If
-
-                                                          UpdateParticipantsHeader()
-                                                          Debug.Print($"Lista partecipanti aggiornata: {_participants.Count} utenti")
-
-                                                      Catch ex As Exception
-                                                          Debug.Print($"Errore in ParticipantsList: {ex.Message}")
-                                                      End Try
-                                                  End Sub)
-                            End Sub)
-
-            ' Handler per aggiornamento stato partecipanti
-            _connection.On(Of String, Boolean, Boolean)("ParticipantStatusChanged",
-                            Sub(connectionId, hasVideo, hasAudio)
-                                Dispatcher.Invoke(Sub()
-                                                      Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
-                                                      If participant IsNot Nothing Then
-                                                          participant.HasVideo = hasVideo
-                                                          participant.HasAudio = hasAudio
-                                                      End If
-                                                  End Sub)
-                            End Sub)
-
-            ' Handler per aggiornamento stato partecipanti
-            _connection.On(Of String, Boolean, Boolean)("ParticipantStatusChanged",
-                            Sub(connectionId, hasVideo, hasAudio)
-                                Dispatcher.Invoke(Sub()
-                                                      Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
-                                                      If participant IsNot Nothing Then
-                                                          participant.HasVideo = hasVideo
-                                                          participant.HasAudio = hasAudio
-
-                                                          ' Aggiorna UI se necessario (es. icona video/audio)
-                                                          Debug.Print($"Stato aggiornato per {participant.UserName}: Video={hasVideo}, Audio={hasAudio}")
-                                                      End If
-                                                  End Sub)
-                            End Sub)
-
-            ' Handler per aggiornamento stato screen share
-            _connection.On(Of String, Boolean)("ScreenSharingStatusChanged",
-                        Sub(connectionId, isSharing)
-                            Dispatcher.Invoke(Sub()
-                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
-                                                  If participant IsNot Nothing Then
-                                                      participant.IsScreenSharing = isSharing
-
-                                                      ' Se sta condividendo lo schermo, possiamo evidenziarlo nella lista
-                                                      Debug.Print($"{participant.UserName} {(If(isSharing, "sta condividendo lo schermo", "ha fermato la condivisione"))}")
-                                                  End If
-                                              End Sub)
-                        End Sub)
-
-            ' Handler per messaggi privati (opzionale)
-            _connection.On(Of String, String, DateTime)("ReceivePrivateMessage",
                         Sub(userName, message, timestamp)
                             Dispatcher.Invoke(Sub()
                                                   Dim chatMsg As New ChatMessage With {
-                                    .Sender = $"🔒 {userName} (privato)",
-                                    .Message = message,
-                                    .Timestamp = timestamp
-                                }
+                                                                                            .Sender = userName,
+                                                                                            .Message = message,
+                                                                                            .Timestamp = Format(timestamp, "dd/MM/yyyy HH:mm:ss")
+                                                                                        }
                                                   _chatMessages.Add(chatMsg)
 
-                                                  ' Evidenzia in qualche modo che è un messaggio privato
+                                                  ' Scroll in fondo
+                                                  If lstChat.Items.Count > 0 Then
+                                                      lstChat.ScrollIntoView(lstChat.Items(lstChat.Items.Count - 1))
+                                                  End If
                                               End Sub)
                         End Sub)
+
+
+            ' Handler per ParticipantsList - VERSIONE CHE POPOLA ANCHE I DESTINATARI
+            _connection.On(Of List(Of UserInfo))("ParticipantsList",
+                    Sub(participantsList As List(Of UserInfo))
+                        Dispatcher.Invoke(Sub()
+                                              Try
+                                                  Debug.Print($"ParticipantsList ricevuto con {participantsList?.Count} utenti")
+
+                                                  ' Pulisci le liste
+                                                  _participants.Clear()
+                                                  _recipients.Clear()
+
+                                                  ' Aggiungi opzione "Tutti" (chat pubblica) - SOLO SE HAI LA CHAT PRIVATA
+                                                  _recipients.Add(New RecipientItem With {
+                                    .ConnectionId = "all",
+                                    .UserName = "Tutti",
+                                    .Icon = "📢"
+                                })
+                                                  Debug.Print("  - Aggiunto 'Tutti' alla lista destinatari")
+
+                                                  ' Processa la lista
+                                                  If participantsList IsNot Nothing Then
+                                                      For Each user In participantsList
+                                                          ' Aggiungi alla lista partecipanti
+                                                          Dim participant As New Participant With {
+                                            .ConnectionId = user.ConnectionId,
+                                            .UserName = If(user.UserName IsNot Nothing, user.UserName, "Utente"),
+                                            .HasVideo = user.HasVideo,
+                                            .HasAudio = user.HasAudio,
+                                            .IsScreenSharing = user.IsScreenSharing
+                                        }
+                                                          _participants.Add(participant)
+                                                          Debug.Print($"  - Aggiunto partecipante: {user.UserName} ({user.ConnectionId})")
+
+                                                          ' Aggiungi alla lista destinatari (SOLO se non è se stesso)
+                                                          If user.ConnectionId <> _localConnectionId Then
+                                                              _recipients.Add(New RecipientItem With {
+                                                .ConnectionId = user.ConnectionId,
+                                                .UserName = user.UserName,
+                                                .Icon = "👤"
+                                            })
+                                                              Debug.Print($"     ✅ Aggiunto anche ai destinatari: {user.UserName}")
+                                                          End If
+                                                      Next
+                                                  End If
+
+                                                  ' Aggiorna l'ItemsSource della ComboBox
+                                                  If cmbPrivateRecipient IsNot Nothing Then
+                                                      cmbPrivateRecipient.ItemsSource = _recipients
+                                                      cmbPrivateRecipient.SelectedIndex = 0 ' Seleziona "Tutti"
+                                                      Debug.Print($"ComboBox aggiornata con {_recipients.Count} destinatari")
+                                                  End If
+
+                                                  UpdateParticipantsHeader()
+                                                  Debug.Print($"Lista partecipanti aggiornata: {_participants.Count} utenti")
+
+                                              Catch ex As Exception
+                                                  Debug.Print($"❌ Errore in ParticipantsList: {ex.Message}")
+                                              End Try
+                                          End Sub)
+                    End Sub)
+
+            ' Handler per aggiornamento stato partecipanti
+            _connection.On(Of String, Boolean, Boolean)("ParticipantStatusChanged",
+                        Sub(connectionId, hasVideo, hasAudio)
+                            Dispatcher.Invoke(Sub()
+                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
+                                                  If participant IsNot Nothing Then
+                                                      participant.HasVideo = hasVideo
+                                                      participant.HasAudio = hasAudio
+                                                  End If
+                                              End Sub)
+                        End Sub)
+
+            ' Handler per aggiornamento stato partecipanti
+            _connection.On(Of String, Boolean, Boolean)("ParticipantStatusChanged",
+                        Sub(connectionId, hasVideo, hasAudio)
+                            Dispatcher.Invoke(Sub()
+                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
+                                                  If participant IsNot Nothing Then
+                                                      participant.HasVideo = hasVideo
+                                                      participant.HasAudio = hasAudio
+
+                                                      ' Aggiorna UI se necessario (es. icona video/audio)
+                                                      Debug.Print($"Stato aggiornato per {participant.UserName}: Video={hasVideo}, Audio={hasAudio}")
+                                                  End If
+                                              End Sub)
+                        End Sub)
+
+            ' Handler per aggiornamento stato screen share
+            _connection.On(Of String, Boolean)("ScreenSharingStatusChanged",
+                    Sub(connectionId, isSharing)
+                        Dispatcher.Invoke(Sub()
+                                              Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = connectionId)
+                                              If participant IsNot Nothing Then
+                                                  participant.IsScreenSharing = isSharing
+
+                                                  ' Se sta condividendo lo schermo, possiamo evidenziarlo nella lista
+                                                  Debug.Print($"{participant.UserName} {(If(isSharing, "sta condividendo lo schermo", "ha fermato la condivisione"))}")
+                                              End If
+                                          End Sub)
+                    End Sub)
+
+            '        ' Handler per ricevere messaggi privati
+            '        _connection.On(Of String, String, String, DateTime)("ReceivePrivateMessage",
+            'Sub(senderId, senderName, message, timestamp)
+            '    Debug.Print($"[CLIENT-RICEVE] >>> INIZIO ReceivePrivateMessage - Da: {senderName}, Msg: {message}")
+            '    Dispatcher.Invoke(Sub()
+            '                          Debug.Print($"[CLIENT-RICEVE] >>> Dispatcher.Invoke - Aggiungo messaggio")
+            '                          Dim chatMsg As New ChatMessage With {
+            '            .Sender = senderName,
+            '            .Message = message,
+            '            .Timestamp = timestamp.ToString("HH:mm:ss"),
+            '            .IsPrivate = True
+            '        }
+            '                          _chatMessages.Add(chatMsg)
+            '                          Debug.Print($"[CLIENT-RICEVE] >>> Messaggio aggiunto, totale: {_chatMessages.Count}")
+            '                      End Sub)
+            '    Debug.Print($"[CLIENT-RICEVE] <<< FINE ReceivePrivateMessage")
+            'End Sub)
+
+            '        ' Handler per conferma invio
+            '        _connection.On(Of String, String)("PrivateMessageSent",
+            'Sub(targetId, message)
+            '    Debug.Print($"[CLIENT-SENT] >>> INIZIO PrivateMessageSent - targetId: {targetId}")
+            '    ' NON facciamo nulla per ora
+            '    Debug.Print($"[CLIENT-SENT] <<< FINE PrivateMessageSent")
+            'End Sub)
 
             ' Handler per quando qualcuno ferma lo screenshare (REMOTO)
             _connection.On(Of String)("ScreenShareStopped",
-                        Sub(senderConnectionId)
-                            Dispatcher.Invoke(Sub()
-                                                  Debug.Print($"ScreenShareStopped ricevuto da {senderConnectionId}")
+                    Sub(senderConnectionId)
+                        Dispatcher.Invoke(Sub()
+                                              Debug.Print($"ScreenShareStopped ricevuto da {senderConnectionId}")
 
-                                                  If senderConnectionId = _localConnectionId Then
-                                                      ' IO ho fermato - la mia finestra era già minimizzata, la ripristino?
-                                                      ' Opzionale: RestoreWindow() se vuoi
+                                              If senderConnectionId = _localConnectionId Then
+                                                  ' IO ho fermato - la mia finestra era già minimizzata, la ripristino?
+                                                  ' Opzionale: RestoreWindow() se vuoi
 
-                                                      ' Io ho fermato - nascondo il mio cursore remoto
-                                                      HideRemoteCursor()
+                                                  ' Io ho fermato - nascondo il mio cursore remoto
+                                                  HideRemoteCursor()
 
-                                                      Debug.Print("IO ho fermato")
-                                                  Else
-                                                      ' Qualcun altro ha fermato - ripristino le colonne
-                                                      RestoreSideColumns()
+                                                  Debug.Print("IO ho fermato")
+                                              Else
+                                                  ' Qualcun altro ha fermato - ripristino le colonne
+                                                  RestoreSideColumns()
 
-                                                      ' Nascondi il cursore
-                                                      HideRemoteCursor()
+                                                  ' Nascondi il cursore
+                                                  HideRemoteCursor()
 
-                                                      Debug.Print("Altri hanno fermato - ripristino colonne")
-                                                  End If
+                                                  Debug.Print("Altri hanno fermato - ripristino colonne")
+                                              End If
 
-                                                  ' Svuota l'immagine dello screenshare
-                                                  screenShareImage.Source = Nothing
-                                                  txtScreenSharePlaceholder.Visibility = Visibility.Visible
+                                              ' Svuota l'immagine dello screenshare
+                                              screenShareImage.Source = Nothing
+                                              txtScreenSharePlaceholder.Visibility = Visibility.Visible
 
-                                                  ' Aggiorna lo stato nella lista partecipanti
-                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
-                                                  If participant IsNot Nothing Then
-                                                      participant.IsScreenSharing = False
-                                                  End If
-                                              End Sub)
-                        End Sub)
+                                              ' Aggiorna lo stato nella lista partecipanti
+                                              Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                              If participant IsNot Nothing Then
+                                                  participant.IsScreenSharing = False
+                                              End If
+                                          End Sub)
+                    End Sub)
 
             ' Handler per quando qualcuno inizia a condividere lo schermo
             _connection.On(Of String)("ScreenShareStarted",
-                        Sub(sharerConnectionId)
-                            Dispatcher.Invoke(Sub()
-                                                  Debug.Print($"ScreenShareStarted da {sharerConnectionId}")
+                    Sub(sharerConnectionId)
+                        Dispatcher.Invoke(Sub()
+                                              Debug.Print($"ScreenShareStarted da {sharerConnectionId}")
 
-                                                  ' IMPORTANTE: Salva chi sta condividendo
-                                                  _remoteConnectionId = sharerConnectionId
+                                              ' IMPORTANTE: Salva chi sta condividendo
+                                              _remoteConnectionId = sharerConnectionId
 
-                                                  If sharerConnectionId = _localConnectionId Then
-                                                      ' IO sono il condividitore - minimizzo la mia finestra
-                                                      MinimizeWindow()
-                                                      Debug.Print("IO condivido - minimizzo finestra")
-                                                  Else
-                                                      ' Qualcun altro condivide - collasso le colonne laterali
-                                                      CollapseSideColumns(True)
+                                              If sharerConnectionId = _localConnectionId Then
+                                                  ' IO sono il condividitore - minimizzo la mia finestra
+                                                  MinimizeWindow()
+                                                  Debug.Print("IO condivido - minimizzo finestra")
+                                              Else
+                                                  ' Qualcun altro condivide - collasso le colonne laterali
+                                                  CollapseSideColumns(True)
 
-                                                      _connection.InvokeAsync("RequestScreenDimensions", txtRoomId.Text, sharerConnectionId)
+                                                  _connection.InvokeAsync("RequestScreenDimensions", txtRoomId.Text, sharerConnectionId)
 
-                                                      ' Nascondi il cursore remoto
-                                                      HideRemoteCursor()
+                                                  ' Nascondi il cursore remoto
+                                                  HideRemoteCursor()
 
-                                                      Debug.Print("Altri condividono - collasso colonne")
-                                                  End If
+                                                  Debug.Print("Altri condividono - collasso colonne")
+                                              End If
 
-                                              End Sub)
-                        End Sub)
+                                          End Sub)
+                    End Sub)
 
             ' Aggiungi handler per ricevere dimensioni schermo
             _connection.On(Of Integer, Integer)("ScreenDimensions",
-                        Sub(width, height)
-                            Dispatcher.Invoke(Sub()
-                                                  Debug.Print($"Ricevute dimensioni schermo: {width}x{height}")
-                                                  ' Salva le dimensioni per usarle nel calcolo del cursore
-                                                  _remoteScreenWidth = width
-                                                  _remoteScreenHeight = height
-                                              End Sub)
-                        End Sub)
+                    Sub(width, height)
+                        Dispatcher.Invoke(Sub()
+                                              Debug.Print($"Ricevute dimensioni schermo: {width}x{height}")
+                                              ' Salva le dimensioni per usarle nel calcolo del cursore
+                                              _remoteScreenWidth = width
+                                              _remoteScreenHeight = height
+                                          End Sub)
+                    End Sub)
 
             '' Handler per quando qualcuno ferma lo schermo
             '_connection.On(Of String)("ScreenShareStopped",
@@ -958,96 +1014,145 @@ Class MainWindow
 
             ' Handler per quando non puoi condividere perché qualcun altro già condivide
             _connection.On(Of String)("ScreenShareBlocked",
-                        Sub(message)
-                            Dispatcher.Invoke(Sub()
-                                                  MessageBox.Show(message, "Condivisione bloccata", MessageBoxButton.OK, MessageBoxImage.Warning)
-                                                  btnShareScreen.IsEnabled = True
-                                              End Sub)
-                        End Sub)
+                    Sub(message)
+                        Dispatcher.Invoke(Sub()
+                                              MessageBox.Show(message, "Condivisione bloccata", MessageBoxButton.OK, MessageBoxImage.Warning)
+                                              btnShareScreen.IsEnabled = True
+                                          End Sub)
+                    End Sub)
 
             ' Handler per posizione cursore
             _connection.On(Of String, Integer, Integer)("CursorPosition",
-                        Sub(senderConnectionId, x, y)
-                            Dispatcher.Invoke(Sub()
-                                                  Debug.Print("=== DEBUG COORDINATE RICEVUTE ===")
-                                                  Debug.Print($"Coordinate originali dal server: ({x}, {y})")
-                                                  Debug.Print($"screenShareImage ActualWidth: {screenShareImage.ActualWidth}")
-                                                  Debug.Print($"screenShareImage ActualHeight: {screenShareImage.ActualHeight}")
-                                                  Debug.Print($"screenShareImage Source: {screenShareImage.Source IsNot Nothing}")
-                                                  Debug.Print($"_remoteScreenWidth: {_remoteScreenWidth}")
-                                                  Debug.Print($"_remoteScreenHeight: {_remoteScreenHeight}")
+                    Sub(senderConnectionId, x, y)
+                        Dispatcher.Invoke(Sub()
+                                              Debug.Print("=== DEBUG COORDINATE RICEVUTE ===")
+                                              Debug.Print($"Coordinate originali dal server: ({x}, {y})")
+                                              Debug.Print($"screenShareImage ActualWidth: {screenShareImage.ActualWidth}")
+                                              Debug.Print($"screenShareImage ActualHeight: {screenShareImage.ActualHeight}")
+                                              Debug.Print($"screenShareImage Source: {screenShareImage.Source IsNot Nothing}")
+                                              Debug.Print($"_remoteScreenWidth: {_remoteScreenWidth}")
+                                              Debug.Print($"_remoteScreenHeight: {_remoteScreenHeight}")
 
-                                                  ' Aggiorna la posizione del cursore solo se lo screen share è attivo
-                                                  ' e proviene dalla persona che sta condividendo
-                                                  'If _isSharingScreen AndAlso senderConnectionId = _remoteConnectionId Then
-                                                  '    UpdateRemoteCursorPosition(x, y)
-                                                  '    Debug.Print($"Remote cursor: ({x}, {y})")
-                                                  'End If
-                                                  If Not _isSharingScreen AndAlso senderConnectionId = _remoteConnectionId Then
-                                                      UpdateRemoteCursorPosition(x, y)
-                                                      Debug.Print($"✅ CURSOR: Aggiornato a ({x}, {y})")
-                                                  Else
-                                                      Debug.Print($"⏭️ CURSOR: Ignorato - isSharingScreen={_isSharingScreen}, sender={senderConnectionId}, remote={_remoteConnectionId}")
-                                                  End If
-                                              End Sub)
-                        End Sub)
+                                              ' Aggiorna la posizione del cursore solo se lo screen share è attivo
+                                              ' e proviene dalla persona che sta condividendo
+                                              'If _isSharingScreen AndAlso senderConnectionId = _remoteConnectionId Then
+                                              '    UpdateRemoteCursorPosition(x, y)
+                                              '    Debug.Print($"Remote cursor: ({x}, {y})")
+                                              'End If
+                                              If Not _isSharingScreen AndAlso senderConnectionId = _remoteConnectionId Then
+                                                  UpdateRemoteCursorPosition(x, y)
+                                                  Debug.Print($"✅ CURSOR: Aggiornato a ({x}, {y})")
+                                              Else
+                                                  Debug.Print($"⏭️ CURSOR: Ignorato - isSharingScreen={_isSharingScreen}, sender={senderConnectionId}, remote={_remoteConnectionId}")
+                                              End If
+                                          End Sub)
+                    End Sub)
 
             _connection.On(Of String)("SendScreenDimensions",
-                        Sub(requestorConnectionId)
-                            Dispatcher.Invoke(Sub()
-                                                  Debug.Print("Richiesto invio dimensioni schermo")
-                                                  If _screenShareManager IsNot Nothing Then
-                                                      _screenShareManager.SendMyScreenDimensions()
-                                                  End If
-                                              End Sub)
-                        End Sub)
+                    Sub(requestorConnectionId)
+                        Dispatcher.Invoke(Sub()
+                                              Debug.Print("Richiesto invio dimensioni schermo")
+                                              If _screenShareManager IsNot Nothing Then
+                                                  _screenShareManager.SendMyScreenDimensions()
+                                              End If
+                                          End Sub)
+                    End Sub)
 
             ' Handler per quando qualcuno ferma il video
             _connection.On(Of String)("VideoStopped",
-                        Sub(senderConnectionId)
-                            Dispatcher.Invoke(Sub()
-                                                  Debug.Print($"📥 Ricevuto VideoStopped da {senderConnectionId}")
+                    Sub(senderConnectionId)
+                        Dispatcher.Invoke(Sub()
+                                              Debug.Print($"📥 Ricevuto VideoStopped da {senderConnectionId}")
 
-                                                  ' Se è il video remoto principale che viene fermato
-                                                  'If senderConnectionId = _remoteConnectionId Then
-                                                  remoteVideoImage.Source = Nothing
-                                                  txtRemoteVideoPlaceholder.Visibility = Visibility.Visible
-                                                  Debug.Print("🧹 Pulito video remoto principale")
-                                                  'End If
+                                              ' Se è il video remoto principale che viene fermato
+                                              'If senderConnectionId = _remoteConnectionId Then
+                                              remoteVideoImage.Source = Nothing
+                                              txtRemoteVideoPlaceholder.Visibility = Visibility.Visible
+                                              Debug.Print("🧹 Pulito video remoto principale")
+                                              'End If
 
-                                                  ' Aggiorna anche nella lista partecipanti
-                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
-                                                  If participant IsNot Nothing Then
-                                                      participant.HasVideo = False
-                                                      participant.VideoSource = Nothing
-                                                      Debug.Print($"👤 Aggiornato stato video per {participant.UserName}")
-                                                  End If
+                                              ' Aggiorna anche nella lista partecipanti
+                                              Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                              If participant IsNot Nothing Then
+                                                  participant.HasVideo = False
+                                                  participant.VideoSource = Nothing
+                                                  Debug.Print($"👤 Aggiornato stato video per {participant.UserName}")
+                                              End If
 
-                                                  ' Se stai usando icRemoteWebcams, aggiorna anche quello
-                                                  ' Forza aggiornamento ItemsControl
-                                                  'icRemoteWebcams.Items.Refresh()
-                                              End Sub)
-                        End Sub)
+                                              ' Se stai usando icRemoteWebcams, aggiorna anche quello
+                                              ' Forza aggiornamento ItemsControl
+                                              'icRemoteWebcams.Items.Refresh()
+                                          End Sub)
+                    End Sub)
 
             ' Handler per quando qualcuno ferma l'audio
             _connection.On(Of String)("AudioStopped",
-                        Sub(senderConnectionId)
-                            Dispatcher.Invoke(Sub()
-                                                  Debug.Print($"📥 Ricevuto AudioStopped da {senderConnectionId}")
+                    Sub(senderConnectionId)
+                        Dispatcher.Invoke(Sub()
+                                              Debug.Print($"📥 Ricevuto AudioStopped da {senderConnectionId}")
 
-                                                  ' Aggiorna anche nella lista partecipanti
-                                                  Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
-                                                  If participant IsNot Nothing Then
-                                                      participant.HasAudio = False
-                                                      Debug.Print($"👤 Aggiornato stato audio per {participant.UserName}")
-                                                  End If
+                                              ' Aggiorna anche nella lista partecipanti
+                                              Dim participant = _participants.FirstOrDefault(Function(p) p.ConnectionId = senderConnectionId)
+                                              If participant IsNot Nothing Then
+                                                  participant.HasAudio = False
+                                                  Debug.Print($"👤 Aggiornato stato audio per {participant.UserName}")
+                                              End If
 
-                                                  ' Se stai usando icRemoteWebcams, aggiorna anche quello
-                                                  ' Forza aggiornamento ItemsControl
-                                                  'icRemoteWebcams.Items.Refresh()
-                                              End Sub)
-                        End Sub)
+                                              ' Se stai usando icRemoteWebcams, aggiorna anche quello
+                                              ' Forza aggiornamento ItemsControl
+                                              'icRemoteWebcams.Items.Refresh()
+                                          End Sub)
+                    End Sub)
 
+            ' Handler per ricevere messaggi privati
+            _connection.On(Of String, String, String, DateTime)("ReceivePrivateMessage",
+                    Sub(senderId As String, senderName As String, message As String, timestamp As DateTime)
+                        Dispatcher.Invoke(Sub()
+                                              Dim chatMsg As New ChatMessage With {
+                                                                                    .Sender = senderName,
+                                                                                    .Message = message,
+                                                                                    .Timestamp = timestamp.ToString("HH:mm:ss"),
+                                                                                    .IsPrivate = True,
+                                                                                    .SenderId = senderId
+                                                                                }
+                                              _chatMessages.Add(chatMsg)
+
+                                              ' Scroll in fondo
+                                              If lstChat.Items.Count > 0 Then
+                                                  lstChat.ScrollIntoView(lstChat.Items(lstChat.Items.Count - 1))
+                                              End If
+
+                                              ' Notifica visiva (opzionale)
+                                              FlashChatIcon()
+                                          End Sub)
+                    End Sub)
+
+            ' Handler per conferma invio messaggio privato
+            _connection.On(Of String, String)("PrivateMessageSent",
+                    Sub(targetId As String, message As String)
+                        Dispatcher.Invoke(Sub()
+                                              ' Trova il nome del destinatario
+                                              Dim targetName = "Utente"
+                                              Dim target = _recipients.FirstOrDefault(Function(r) r.ConnectionId = targetId)
+                                              If target IsNot Nothing Then
+                                                  targetName = target.UserName
+                                              End If
+
+                                              Dim chatMsg As New ChatMessage With {
+                                .Sender = "Tu",
+                                .Message = message,
+                                .Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+                                .IsPrivate = True,
+                                .TargetUser = targetName
+                            }
+                                              _chatMessages.Add(chatMsg)
+
+                                              ' Scroll in fondo
+                                              If lstChat.Items.Count > 0 Then
+                                                  lstChat.ScrollIntoView(lstChat.Items(lstChat.Items.Count - 1))
+                                              End If
+                                          End Sub)
+                    End Sub)
 
             ' Connessione al server
             Await _connection.StartAsync()
@@ -1065,7 +1170,7 @@ Class MainWindow
 
         Catch ex As Exception
             MessageBox.Show($"Errore di connessione: {ex.Message}", "Errore",
-                          MessageBoxButton.OK, MessageBoxImage.Error)
+                      MessageBoxButton.OK, MessageBoxImage.Error)
             txtStatus.Text = "Errore di connessione"
             IsConnected = False
         End Try
@@ -1101,6 +1206,58 @@ Class MainWindow
             parentGroupBox.MinHeight = 200 / aspectRatio
         End If
     End Sub
+
+    'Private Sub OnParticipantsList(participants As List(Of Object))
+    '    Try
+    '        Dispatcher.Invoke(Sub()
+    '                              _participants.Clear()
+    '                              _recipients.Clear()
+
+    '                              ' Aggiungi opzione "Tutti" (chat pubblica)
+    '                              _recipients.Add(New RecipientItem With {
+    '                                                                            .ConnectionId = "all",
+    '                                                                            .UserName = "Tutti",
+    '                                                                            .Icon = "📢"
+    '                                                                        })
+
+    '                              For Each p In participants
+    '                                  Dim connId = p.GetType().GetProperty("ConnectionId")?.GetValue(p)?.ToString()
+    '                                  Dim userName = p.GetType().GetProperty("UserName")?.GetValue(p)?.ToString()
+
+    '                                  Dim hasVideo = If(p.GetType().GetProperty("HasVideo")?.GetValue(p), False)
+    '                                  Dim hasAudio = If(p.GetType().GetProperty("HasAudio")?.GetValue(p), False)
+    '                                  Dim isScreenSharing = If(p.GetType().GetProperty("IsScreenSharing")?.GetValue(p), False)
+
+    '                                  If Not String.IsNullOrEmpty(connId) AndAlso connId <> _localConnectionId Then
+    '                                      ' Aggiungi alla lista partecipanti
+    '                                      Dim participant As New Participant With {
+    '                                                                                .ConnectionId = connId,
+    '                                                                                .UserName = userName,
+    '                                                                                .HasVideo = hasVideo,
+    '                                                                                .HasAudio = hasAudio,
+    '                                                                                .IsScreenSharing = isScreenSharing
+    '                                                                            }
+    '                                      _participants.Add(participant)
+
+    '                                      ' Aggiungi alla lista destinatari
+    '                                      _recipients.Add(New RecipientItem With {
+    '                                                                                .ConnectionId = connId,
+    '                                                                                .UserName = userName,
+    '                                                                                .Icon = "👤"
+    '                                                                            })
+    '                                  End If
+    '                              Next
+
+    '                              ' Imposta ItemsSource della ComboBox
+    '                              cmbPrivateRecipient.ItemsSource = _recipients
+    '                              cmbPrivateRecipient.SelectedIndex = 0 ' Seleziona "Tutti"
+
+    '                              UpdateParticipantsHeader()
+    '                          End Sub)
+    '    Catch ex As Exception
+    '        Debug.Print($"Errore OnParticipantsList: {ex.Message}")
+    '    End Try
+    'End Sub
 
     'Private Sub cmbScreenStretch_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
     '    If screenShareImage Is Nothing Then Return
@@ -1167,13 +1324,13 @@ Class MainWindow
     Private Async Sub btnStartVideo_Click(sender As Object, e As RoutedEventArgs)
         If _videoManager Is Nothing Then
             MessageBox.Show("Video Manager non inizializzato", "Errore",
-                          MessageBoxButton.OK, MessageBoxImage.Error)
+                      MessageBoxButton.OK, MessageBoxImage.Error)
             Return
         End If
 
         If _videoManager.IsCapturing Then
             MessageBox.Show("Video già attivo", "Info",
-                          MessageBoxButton.OK, MessageBoxImage.Information)
+                      MessageBoxButton.OK, MessageBoxImage.Information)
             Return
         End If
 
@@ -1219,16 +1376,16 @@ Class MainWindow
                 '              "Successo", MessageBoxButton.OK, MessageBoxImage.Information)
             Else
                 MessageBox.Show("Impossibile avviare la webcam. Controlla:" & vbCrLf &
-                              "1. I permessi della webcam" & vbCrLf &
-                              "2. Che la webcam sia collegata e funzionante" & vbCrLf &
-                              "3. Che non sia già in uso da un'altra applicazione" & vbCrLf &
-                              "4. Che i driver siano installati correttamente",
-                              "Errore Webcam", MessageBoxButton.OK, MessageBoxImage.Error)
+                          "1. I permessi della webcam" & vbCrLf &
+                          "2. Che la webcam sia collegata e funzionante" & vbCrLf &
+                          "3. Che non sia già in uso da un'altra applicazione" & vbCrLf &
+                          "4. Che i driver siano installati correttamente",
+                          "Errore Webcam", MessageBoxButton.OK, MessageBoxImage.Error)
             End If
 
         Catch ex As Exception
             MessageBox.Show($"Errore nell'avvio del video: {ex.Message}",
-                          "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+                      "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
             txtStatus.Text = "Errore video"
             txtVideoStatus.Text = "Video: Errore"
         Finally
@@ -1263,7 +1420,7 @@ Class MainWindow
             End If
         Catch ex As Exception
             MessageBox.Show($"Errore nella fermata del video: {ex.Message}",
-                          "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+                      "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
         Finally
             UpdateUI()
         End Try
@@ -1272,13 +1429,13 @@ Class MainWindow
     Private Async Sub btnStartAudio_Click(sender As Object, e As RoutedEventArgs)
         If _videoManager Is Nothing Then
             MessageBox.Show("Video Manager non inizializzato", "Errore",
-                      MessageBoxButton.OK, MessageBoxImage.Error)
+                  MessageBoxButton.OK, MessageBoxImage.Error)
             Return
         End If
 
         If _videoManager.IsAudioCapturing Then
             MessageBox.Show("Audio già attivo", "Info",
-                      MessageBoxButton.OK, MessageBoxImage.Information)
+                  MessageBoxButton.OK, MessageBoxImage.Information)
             Return
         End If
 
@@ -1300,15 +1457,15 @@ Class MainWindow
                 '          "Successo", MessageBoxButton.OK, MessageBoxImage.Information)
             Else
                 MessageBox.Show("Impossibile avviare il microfono. Controlla:" & vbCrLf &
-                          "1. I permessi del microfono" & vbCrLf &
-                          "2. Che il microfono sia collegato e funzionante" & vbCrLf &
-                          "3. Che non sia già in uso da un'altra applicazione",
-                          "Errore Microfono", MessageBoxButton.OK, MessageBoxImage.Error)
+                      "1. I permessi del microfono" & vbCrLf &
+                      "2. Che il microfono sia collegato e funzionante" & vbCrLf &
+                      "3. Che non sia già in uso da un'altra applicazione",
+                      "Errore Microfono", MessageBoxButton.OK, MessageBoxImage.Error)
             End If
 
         Catch ex As Exception
             MessageBox.Show($"Errore nell'avvio dell'audio: {ex.Message}",
-                      "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
         Finally
             UpdateUI()
         End Try
@@ -1334,7 +1491,7 @@ Class MainWindow
             End If
         Catch ex As Exception
             MessageBox.Show($"Errore nella fermata dell'audio: {ex.Message}",
-                      "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
         Finally
             UpdateUI()
         End Try
@@ -1416,17 +1573,16 @@ Class MainWindow
         End Try
     End Sub
 
-
     Private Async Sub btnShareScreen_Click(sender As Object, e As RoutedEventArgs)
         If _screenShareManager Is Nothing Then
             MessageBox.Show("ScreenShareManager non inizializzato", "Errore",
-                      MessageBoxButton.OK, MessageBoxImage.Error)
+                  MessageBoxButton.OK, MessageBoxImage.Error)
             Return
         End If
 
         If _screenShareManager.IsSharing Then
             MessageBox.Show("Condivisione già attiva", "Info",
-                      MessageBoxButton.OK, MessageBoxImage.Information)
+                  MessageBoxButton.OK, MessageBoxImage.Information)
             Return
         End If
 
@@ -1477,7 +1633,7 @@ Class MainWindow
 
         Catch ex As Exception
             MessageBox.Show($"Errore avvio condivisione: {ex.Message}",
-                      "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
             btnShareScreen.IsEnabled = True
         Finally
             UpdateUI()
@@ -1513,7 +1669,7 @@ Class MainWindow
             End If
         Catch ex As Exception
             MessageBox.Show($"Errore fermata condivisione: {ex.Message}",
-                      "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
+                  "Errore", MessageBoxButton.OK, MessageBoxImage.Error)
         Finally
             UpdateUI()
         End Try
@@ -1735,6 +1891,26 @@ Class MainWindow
     End Function
 
     ' ========== GESTIONE CHAT ==========
+    Private Sub cmbPrivateRecipient_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
+        Try
+            Dim selected = TryCast(cmbPrivateRecipient.SelectedItem, RecipientItem)
+            If selected IsNot Nothing Then
+                If selected.ConnectionId = "all" Then
+                    'Chat pubblica - fondo chiaro
+                    txtChatMessage.Background = New SolidColorBrush(Color.FromRgb(255, 255, 255)) ' Bianco
+                    txtChatMessage.Foreground = Brushes.Black
+                    txtChatMessage.ToolTip = "Messaggio pubblico per tutti"
+                Else
+                    ' Chat privata - fondo azzurrino
+                    txtChatMessage.Background = New SolidColorBrush(Color.FromRgb(230, 242, 255)) ' Azzurrino
+                    txtChatMessage.Foreground = Brushes.Black
+                    txtChatMessage.ToolTip = $"Messaggio privato per {selected.UserName}"
+                End If
+            End If
+        Catch ex As Exception
+            Debug.Print($"Errore selezione destinatario: {ex.Message}")
+        End Try
+    End Sub
 
     Private Async Sub btnSendChat_Click(sender As Object, e As RoutedEventArgs)
         Await SendChatMessage()
@@ -1742,42 +1918,181 @@ Class MainWindow
 
     Private Async Sub txtChatMessage_KeyDown(sender As Object, e As KeyEventArgs)
         If e.Key = Key.Enter Then
-            Await SendChatMessage()
             e.Handled = True
+            Await SendChatMessage()
         End If
     End Sub
 
+    'Private Async Function SendChatMessage() As Task
+    '    Dim message = txtChatMessage.Text.Trim()
+    '    If String.IsNullOrEmpty(message) Then Return
+
+    '    Try
+    '        ' Ottieni il destinatario selezionato
+    '        Dim selectedRecipient = TryCast(cmbPrivateRecipient.SelectedItem, RecipientItem)
+
+    '        If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
+    '            If selectedRecipient IsNot Nothing AndAlso selectedRecipient.ConnectionId <> "all" Then
+    '                ' 📨 MESSAGGIO PRIVATO
+    '                Await _connection.InvokeAsync("SendPrivateMessage", selectedRecipient.ConnectionId, txtUserName.Text, message)
+
+    '                ' La conferma arriverà via PrivateMessageSent
+    '                txtChatMessage.Clear()
+    '            Else
+    '                ' 📢 MESSAGGIO PUBBLICO
+    '                Await _connection.InvokeAsync("SendChatMessage", txtRoomId.Text, txtUserName.Text, message)
+
+    '                ' Aggiungi anche localmente
+    '                AddLocalChatMessage(txtUserName.Text, message, False, Nothing)
+    '                txtChatMessage.Clear()
+    '            End If
+    '        End If
+
+    '    Catch ex As Exception
+    '        Debug.Print($"Error sending chat: {ex.Message}")
+    '    End Try
+    'End Function
+
+    'Private Async Function SendChatMessage() As Task
+    '    Dim message = txtChatMessage.Text.Trim()
+    '    If String.IsNullOrEmpty(message) Then Return
+
+    '    Try
+    '        Dim selectedRecipient = TryCast(cmbPrivateRecipient.SelectedItem, RecipientItem)
+
+    '        If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
+    '            If selectedRecipient IsNot Nothing AndAlso selectedRecipient.ConnectionId <> "all" Then
+    '                ' 📨 MESSAGGIO PRIVATO
+    '                Await _connection.InvokeAsync("SendPrivateMessage", selectedRecipient.ConnectionId, txtUserName.Text, message)
+
+    '                ' Aggiungi UNA SOLA VOLTA in locale (il mittente vede subito)
+    '                AddLocalChatMessage("Tu", message, True, selectedRecipient.UserName)
+    '                txtChatMessage.Clear()
+    '            Else
+    '                ' 📢 MESSAGGIO PUBBLICO
+    '                Await _connection.InvokeAsync("SendChatMessage", txtRoomId.Text, txtUserName.Text, message)
+
+    '                ' Aggiungi UNA SOLA VOLTA in locale
+    '                AddLocalChatMessage("Tu", message, False, Nothing)
+    '                txtChatMessage.Clear()
+    '            End If
+    '        End If
+    '    Catch ex As Exception
+    '        Debug.Print($"Error sending chat: {ex.Message}")
+    '    End Try
+    'End Function
+
+    Private _isSending As Boolean = False
     Private Async Function SendChatMessage() As Task
+        ' Evita chiamate multiple simultanee
+        If _isSending Then
+            Debug.Print($"[CLIENT] ⚠️ Invio già in corso, ignoro")
+            Return
+        End If
+
+        _isSending = True
+
         Dim message = txtChatMessage.Text.Trim()
         If String.IsNullOrEmpty(message) Then Return
 
         Try
-            If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
-                Await _connection.InvokeAsync("SendChatMessage", txtRoomId.Text, txtUserName.Text, message)
-                txtChatMessage.Clear()
+            Dim selectedRecipient = TryCast(cmbPrivateRecipient.SelectedItem, RecipientItem)
+            Debug.Print($"[CLIENT-SEND] >>> SendChatMessage - Msg: {message}, Recipient: {If(selectedRecipient?.UserName, "null")}")
 
-                ' Aggiungi anche localmente (per vedere subito il messaggio)
-                AddLocalChatMessage(txtUserName.Text, message)
+            If _connection IsNot Nothing AndAlso _connection.State = HubConnectionState.Connected Then
+                If selectedRecipient IsNot Nothing AndAlso selectedRecipient.ConnectionId <> "all" Then
+                    ' 📨 MESSAGGIO PRIVATO
+                    Debug.Print($"[CLIENT-SEND]   Invio messaggio PRIVATO a {selectedRecipient.UserName}")
+                    Await _connection.InvokeAsync("SendPrivateMessage", selectedRecipient.ConnectionId, txtUserName.Text, message)
+
+                    ' Aggiungi in locale UNA VOLTA
+                    Debug.Print($"[CLIENT-SEND]   Aggiungo in locale (mittente)")
+                    AddLocalChatMessage("Tu", message, True, selectedRecipient.UserName)
+                    txtChatMessage.Clear()
+                Else
+                    ' 📢 MESSAGGIO PUBBLICO
+                    Debug.Print($"[CLIENT-SEND]   Invio messaggio PUBBLICO")
+                    Await _connection.InvokeAsync("SendChatMessage", txtRoomId.Text, txtUserName.Text, message)
+
+                    ' Aggiungi in locale UNA VOLTA
+                    Debug.Print($"[CLIENT-SEND]   Aggiungo in locale (mittente)")
+                    AddLocalChatMessage("Tu", message, False, Nothing)
+                    txtChatMessage.Clear()
+                End If
             End If
+            Debug.Print($"[CLIENT-SEND] <<< SendChatMessage FINE")
         Catch ex As Exception
-            Debug.Print($"Error sending chat: {ex.Message}")
+            Debug.Print($"[CLIENT-SEND] ❌ ERRORE: {ex.Message}")
+        Finally
+            _isSending = False
         End Try
     End Function
 
-    Private Sub AddLocalChatMessage(sender As String, message As String)
+    Private Sub AddLocalChatMessage(sender As String, message As String, isPrivate As Boolean, Optional targetName As String = Nothing)
         Dispatcher.Invoke(Sub()
+                              Debug.Print($"[CLIENT-ADD] >>> AddLocalChatMessage - Sender: {sender}, Msg: {message}, isPrivate: {isPrivate}")
+
+                              ' Controllo duplicati MOLTO rigoroso
+                              For Each existing In _chatMessages
+                                  If existing.Sender = sender AndAlso
+               existing.Message = message AndAlso
+               existing.IsPrivate = isPrivate AndAlso
+               Math.Abs((DateTime.Parse(existing.Timestamp) - DateTime.Now).TotalSeconds) < 2 Then
+                                      Debug.Print($"[CLIENT-ADD] ⚠️ TROVATO DUPLICATO! Non aggiungo")
+                                      Return
+                                  End If
+                              Next
+
                               Dim chatMsg As New ChatMessage With {
-                                  .Sender = sender,
-                                  .Message = message,
-                                  .Timestamp = DateTime.Now
-                              }
+            .Sender = sender,
+            .Message = message,
+            .Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+            .IsPrivate = isPrivate,
+            .TargetUser = targetName
+        }
                               _chatMessages.Add(chatMsg)
+                              Debug.Print($"[CLIENT-ADD] ✅ Messaggio aggiunto, totale: {_chatMessages.Count}")
 
                               ' Scroll in fondo
                               If lstChat.Items.Count > 0 Then
                                   lstChat.ScrollIntoView(lstChat.Items(lstChat.Items.Count - 1))
                               End If
+                              Debug.Print($"[CLIENT-ADD] <<< FINE AddLocalChatMessage")
                           End Sub)
+    End Sub
+
+    'Private Sub AddLocalChatMessage(sender As String, message As String)
+    '    Dispatcher.Invoke(Sub()
+    '                          Dim chatMsg As New ChatMessage With {
+    '                              .Sender = sender,
+    '                              .Message = message,
+    '                              .Timestamp = DateTime.Now
+    '                          }
+    '                          _chatMessages.Add(chatMsg)
+
+    '                          ' Scroll in fondo
+    '                          If lstChat.Items.Count > 0 Then
+    '                              lstChat.ScrollIntoView(lstChat.Items(lstChat.Items.Count - 1))
+    '                          End If
+    '                      End Sub)
+    'End Sub
+
+    Private Async Sub FlashChatIcon()
+        Try
+            ' Trova il GroupBox della chat
+            Dim chatGroupBox = TryCast(FindName("ChatGroupBox"), GroupBox)
+            If chatGroupBox IsNot Nothing Then
+                Dim originalColor = chatGroupBox.BorderBrush
+                chatGroupBox.BorderBrush = Brushes.Gold
+                chatGroupBox.BorderThickness = New Thickness(2)
+
+                Await Task.Delay(500)
+
+                chatGroupBox.BorderBrush = originalColor
+                chatGroupBox.BorderThickness = New Thickness(1)
+            End If
+        Catch
+        End Try
     End Sub
 
     Private Sub CollapseSideColumns(collapse As Boolean)
@@ -2325,8 +2640,8 @@ Class MainWindow
             ' Accedi agli oggetti UI in modo thread-safe
             Dispatcher.Invoke(Sub()
                                   canSend = (IsConnected AndAlso
-                                            _connection IsNot Nothing AndAlso
-                                            _connection.State = HubConnectionState.Connected)
+                                        _connection IsNot Nothing AndAlso
+                                        _connection.State = HubConnectionState.Connected)
                                   currentRoomId = txtRoomId.Text
                               End Sub)
 
@@ -2441,11 +2756,119 @@ End Class
 
 ' Classe per i messaggi chat
 Public Class ChatMessage
-    Public Property Sender As String
-    Public Property Message As String
-    Public Property Timestamp As String
-End Class
+    Implements INotifyPropertyChanged
 
+    Private _sender As String
+    Private _message As String
+    Private _timestamp As String
+    Private _isPrivate As Boolean
+    Private _targetUser As String
+    Private _senderId As String
+
+    Public Event PropertyChanged As PropertyChangedEventHandler Implements INotifyPropertyChanged.PropertyChanged
+
+    Public Property Sender As String
+        Get
+            Return _sender
+        End Get
+        Set(value As String)
+            _sender = value
+            OnPropertyChanged()
+        End Set
+    End Property
+
+    Public Property Message As String
+        Get
+            Return _message
+        End Get
+        Set(value As String)
+            _message = value
+            OnPropertyChanged()
+        End Set
+    End Property
+
+    Public Property Timestamp As String
+        Get
+            Return _timestamp
+        End Get
+        Set(value As String)
+            _timestamp = value
+            OnPropertyChanged()
+        End Set
+    End Property
+
+    Public Property IsPrivate As Boolean
+        Get
+            Return _isPrivate
+        End Get
+        Set(value As Boolean)
+            _isPrivate = value
+            OnPropertyChanged()
+        End Set
+    End Property
+
+    Public Property TargetUser As String
+        Get
+            Return _targetUser
+        End Get
+        Set(value As String)
+            _targetUser = value
+            OnPropertyChanged()
+        End Set
+    End Property
+
+    Public Property SenderId As String
+        Get
+            Return _senderId
+        End Get
+        Set(value As String)
+            _senderId = value
+            OnPropertyChanged()
+        End Set
+    End Property
+
+    ' Proprietà per la visualizzazione formattata
+    Public ReadOnly Property DisplayText As String
+        Get
+            Dim timeStr = _timestamp
+            If String.IsNullOrEmpty(timeStr) Then
+                timeStr = DateTime.Now.ToString("HH:mm:ss")
+            End If
+
+            If _isPrivate Then
+                If _sender = "Tu" Then
+                    Return $"[{timeStr}] 🔒 (a {_targetUser}): {_message}"
+                Else
+                    Return $"[{timeStr}] 🔒 {_sender} (privato): {_message}"
+                End If
+            Else
+                Return $"[{timeStr}] {_sender}: {_message}"
+            End If
+        End Get
+    End Property
+
+    ' Colore del testo (blu per privati)
+    Public ReadOnly Property TextColor As Brush
+        Get
+            Return If(_isPrivate, Brushes.LightBlue, Brushes.White)
+        End Get
+    End Property
+
+    ' Sfondo (leggermente diverso per privati)
+    Public ReadOnly Property Background As Brush
+        Get
+            If _isPrivate Then
+                Return New SolidColorBrush(Color.FromArgb(50, 0, 120, 255)) ' Blu trasparente
+            Else
+                Return Brushes.Transparent
+            End If
+        End Get
+    End Property
+
+    Protected Sub OnPropertyChanged(<CallerMemberName> Optional memberName As String = Nothing)
+        RaiseEvent PropertyChanged(Me, New PropertyChangedEventArgs(memberName))
+    End Sub
+End Class
 
 Public Class UserInfo
     Public Property ConnectionId As String

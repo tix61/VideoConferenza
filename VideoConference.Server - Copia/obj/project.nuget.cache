@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "dgSpecHash": "izNee4bdhpw=",
+  "success": true,
+  "projectFilePath": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.aspnetcore.mvc\\2.3.9\\microsoft.aspnetcore.mvc.2.3.9.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.aspnetcore.mvc.razor.extensions\\6.0.0\\microsoft.aspnetcore.mvc.razor.extensions.6.0.0.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.aspnetcore.mvc.razor.runtimecompilation\\10.0.3\\microsoft.aspnetcore.mvc.razor.runtimecompilation.10.0.3.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.aspnetcore.razor.design\\2.3.0\\microsoft.aspnetcore.razor.design.2.3.0.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.aspnetcore.razor.language\\6.0.0\\microsoft.aspnetcore.razor.language.6.0.0.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.aspnetcore.signalr\\1.2.9\\microsoft.aspnetcore.signalr.1.2.9.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.aspnetcore.staticfiles\\2.3.9\\microsoft.aspnetcore.staticfiles.2.3.9.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.2\\microsoft.codeanalysis.analyzers.3.3.2.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.codeanalysis.common\\4.0.0\\microsoft.codeanalysis.common.4.0.0.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.codeanalysis.csharp\\4.0.0\\microsoft.codeanalysis.csharp.4.0.0.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.codeanalysis.razor\\6.0.0\\microsoft.codeanalysis.razor.6.0.0.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\microsoft.extensions.dependencymodel\\10.0.3\\microsoft.extensions.dependencymodel.10.0.3.nupkg.sha512",
+    "C:\\Users\\tizia\\.nuget\\packages\\newtonsoft.json\\13.0.4\\newtonsoft.json.13.0.4.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1510",
+      "level": "Warning",
+      "message": "PackageReference Microsoft.AspNetCore.SignalR will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary.",
+      "projectPath": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+      "libraryId": "Microsoft.AspNetCore.SignalR",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    },
+    {
+      "code": "NU1510",
+      "level": "Warning",
+      "message": "PackageReference Microsoft.AspNetCore.Mvc will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary.",
+      "projectPath": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+      "libraryId": "Microsoft.AspNetCore.Mvc",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    },
+    {
+      "code": "NU1510",
+      "level": "Warning",
+      "message": "PackageReference Microsoft.AspNetCore.StaticFiles will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary.",
+      "projectPath": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Progetti\\VideoConference\\VideoConference.Server\\VideoConference.Server.vbproj",
+      "libraryId": "Microsoft.AspNetCore.StaticFiles",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
+}

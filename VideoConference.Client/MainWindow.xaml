@@ -5,28 +5,156 @@
         Title="Video Conference Client" 
         WindowState="Maximized"  
         WindowStyle="SingleBorderWindow"
-        Height="1080" Width="1920">
+        Height="1080" Width="1920"
+        Background="#F5F5F5">
+    <!-- Sfondo grigio chiaro -->
+
+    <Window.Resources>
+    <local:BooleanToBorderThicknessConverter x:Key="BooleanToBorderThicknessConverter"/>
+    <local:BooleanToFontWeightConverter x:Key="BooleanToFontWeightConverter"/>
+
+    <!-- Stile moderno per GroupBox -->
+    <Style TargetType="GroupBox">
+        <Setter Property="Margin" Value="5"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#DDD"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GroupBox">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" 
+                                    Background="#F8F8F8"
+                                    BorderBrush="#DDD"
+                                    BorderThickness="1,1,1,0"
+                                    CornerRadius="8,8,0,0"
+                                    Padding="10,5">
+                            <ContentPresenter ContentSource="Header"
+                                                RecognizesAccessKey="True"
+                                                TextElement.FontWeight="SemiBold"
+                                                TextElement.FontSize="13"
+                                                TextElement.Foreground="#333"/>
+                        </Border>
+                        <Border Grid.Row="1"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="#DDD"
+                                    BorderThickness="1,0,1,1"
+                                    CornerRadius="0,0,8,8"
+                                    Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Stile moderno per ListBox -->
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#DDD"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                        <ScrollViewer Padding="5"
+                                        Focusable="false"
+                                        HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
+                                        VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Stile moderno per TextBox -->
+    <Style TargetType="TextBox">
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#CCC"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="5,0"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Stile moderno per Button -->
+    <Style TargetType="Button">
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Padding" Value="12,0"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="#0078D4"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}"
+                                Height="{TemplateBinding Height}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#106EBE"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Background" Value="#005A9E"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.5"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    </Window.Resources>
+    
 
     <Grid x:Name="MainContentGrid" Margin="5">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Connection + Controls -->
             <RowDefinition Height="Auto"/>
-            <!-- Status -->
             <RowDefinition Height="*"/>
-            <!-- Main content -->
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
-            <!-- Left panel (video locale + remoto) -->
             <ColumnDefinition Width="5*"/>
-            <!-- Screen share -->
             <ColumnDefinition Width="3*"/>
-            <!-- Right panel (chat) -->
         </Grid.ColumnDefinitions>
 
-        <!-- Connection + Controls Panel (tutti sulla stessa riga) -->
+        <!-- Connection + Controls Panel -->
         <GroupBox Header="Connessione e Controlli" Grid.Row="0" Grid.ColumnSpan="3" Margin="5">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal" Margin="5">
@@ -34,27 +162,25 @@
                     <TextBox x:Name="txtServerUrl" Text="https://192.168.1.56:5001" Width="180" Margin="2"/>
                     <TextBox x:Name="txtUserName" Text="Utente1" Width="80" Margin="2"/>
                     <TextBox x:Name="txtRoomId" Text="stanza1" Width="80" Margin="2"/>
-                    <Button x:Name="btnConnect" Content="Connetti" Width="70" Margin="2" Height="30"/>
-                    <Button x:Name="btnDisconnect" Content="Disconnetti" Width="80" Margin="2" Height="30"/>
+                    <Button x:Name="btnConnect" Content="Connetti" Width="70" Margin="2" Background="#28A745"/>
+                    <Button x:Name="btnDisconnect" Content="Disconnetti" Width="80" Margin="2" Background="#DC3545"/>
 
-                    <!-- Separatore visivo -->
-                    <Rectangle Width="1" Fill="Gray" Margin="5,0" Height="30"/>
+                    <Rectangle Width="1" Fill="#CCC" Margin="5,0" Height="30"/>
 
-                    <!-- Controlli Video -->
-                    <Button x:Name="btnStartVideo" Content="Avvia Video" Width="90" Margin="2" Height="30"/>
-                    <Button x:Name="btnStopVideo" Content="Ferma Video" Width="90" Margin="2" Height="30"/>
+                    <!-- Video -->
+                    <Button x:Name="btnStartVideo" Content="📹 Avvia" Width="80" Margin="2" Background="#0078D4"/>
+                    <Button x:Name="btnStopVideo" Content="⏹️ Ferma" Width="80" Margin="2" Background="#DC3545"/>
 
-                    <!-- Controlli Audio -->
-                    <Button x:Name="btnStartAudio" Content="Avvia Audio" Width="90" Margin="2" Height="30"/>
-                    <Button x:Name="btnStopAudio" Content="Ferma Audio" Width="90" Margin="2" Height="30"/>
+                    <!-- Audio -->
+                    <Button x:Name="btnStartAudio" Content="🎤 Avvia" Width="80" Margin="2" Background="#0078D4"/>
+                    <Button x:Name="btnStopAudio" Content="⏹️ Ferma" Width="80" Margin="2" Background="#DC3545"/>
 
                     <!-- Screen Share -->
-                    <Button x:Name="btnShareScreen" Content="🖥️ Condividi" Width="100" Margin="2" Height="30" Background="LightBlue" FontWeight="Bold"/>
-                    <Button x:Name="btnStopShare" Content="⏹️ Ferma" Width="80" Margin="2" Height="30" Background="LightPink" FontWeight="Bold" IsEnabled="False"/>
+                    <Button x:Name="btnShareScreen" Content="🖥️ Condividi" Width="100" Margin="2" Background="#17A2B8" FontWeight="Bold"/>
+                    <Button x:Name="btnStopShare" Content="⏹️ Ferma" Width="80" Margin="2" Background="#DC3545" FontWeight="Bold" IsEnabled="False"/>
 
-                    <!-- Pulsante Chat Collapse -->
-                    <Button x:Name="btnToggleChat" Content="💬 Chat" Width="80" Margin="2" Height="30" Background="LightGray" FontWeight="Bold" Click="btnToggleChat_Click"/>
-
+                    <!-- Chat Toggle -->
+                    <Button x:Name="btnToggleChat" Content="💬 Chat" Width="80" Margin="2" Background="#6C757D" FontWeight="Bold" Click="btnToggleChat_Click"/>
                 </StackPanel>
             </ScrollViewer>
         </GroupBox>
@@ -63,66 +189,60 @@
         <GroupBox Header="Stato" Grid.Row="1" Grid.ColumnSpan="3" Margin="5">
             <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="txtStatus" Text="Non connesso" Margin="5" VerticalAlignment="Center" FontWeight="Bold" MinWidth="150"/>
-                <TextBlock x:Name="txtVideoStatus" Text="Video: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold" MinWidth="100"/>
-                <TextBlock x:Name="txtAudioStatus" Text="Audio: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold" MinWidth="100"/>
+                <TextBlock x:Name="txtVideoStatus" Text="Video: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="#DC3545" FontWeight="Bold" MinWidth="100"/>
+                <TextBlock x:Name="txtAudioStatus" Text="Audio: Disattivo" Margin="10" VerticalAlignment="Center" Foreground="#DC3545" FontWeight="Bold" MinWidth="100"/>
             </StackPanel>
         </GroupBox>
 
-        <!-- PANNELLO SINISTRO (Colonna 0) - Video locale sopra, video remoto sotto -->
+        <!-- PANNELLO SINISTRO -->
         <Grid Grid.Row="2" Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="140"/>
-                <!-- Video Locale -->
                 <RowDefinition Height="140"/>
-                <!-- Video Remoto (tutto il resto) -->
                 <RowDefinition Height="*"/>
-                <!-- elenco utenti -->
             </Grid.RowDefinitions>
 
             <!-- Video Locale -->
             <GroupBox Header="Il mio video" Grid.Row="0" Margin="0,0,0,5">
-                <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
+                <Border BorderBrush="#DDD" BorderThickness="1" Background="#dfdfd2" CornerRadius="4">
                     <Grid>
                         <Image x:Name="localVideoImage" Stretch="Uniform" MaxHeight="120"/>
                         <TextBlock x:Name="txtLocalVideoPlaceholder" 
                                   Text="Webcam non attiva" 
                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                  Foreground="White" FontSize="12"
+                                  Foreground="#AAA" FontSize="12"
                                   TextWrapping="Wrap" TextAlignment="Center"/>
                     </Grid>
                 </Border>
             </GroupBox>
 
-            <!-- Video Remoto (occupa tutto lo spazio rimanente) -->
+            <!-- Video Remoto -->
             <GroupBox Header="Video remoto" Grid.Row="1" Margin="0,5,0,0">
-                <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
+                <Border BorderBrush="#DDD" BorderThickness="1" Background="#dfdfd2" CornerRadius="4">
                     <Grid>
                         <Image x:Name="remoteVideoImage" Stretch="Uniform"/>
                         <TextBlock x:Name="txtRemoteVideoPlaceholder" 
                                    Text="In attesa di connessione remota" 
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="White" FontSize="14"
+                                   Foreground="#AAA" FontSize="14"
                                    TextWrapping="Wrap" TextAlignment="Center"/>
                     </Grid>
                 </Border>
             </GroupBox>
 
             <!-- Lista partecipanti -->
-            <GroupBox Header="Partecipanti" Grid.Row="2" Margin="0,0,0,5">
-                <ListBox x:Name="lstParticipants" 
-                             Background="#2D2D30" 
-                             Foreground="White" 
-                             BorderThickness="0">
+            <GroupBox Header="Partecipanti" Grid.Row="2" Margin="0,5,0,5">
+                <ListBox x:Name="lstParticipants" Background="White" Foreground="#333">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Margin="2">
                                 <TextBlock Text="🎥" Margin="0,0,2,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="Gray"/>
+                                            <Setter Property="Foreground" Value="#CCC"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding HasVideo}" Value="True">
-                                                    <Setter Property="Foreground" Value="LightGreen"/>
+                                                    <Setter Property="Foreground" Value="#28A745"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -131,10 +251,10 @@
                                 <TextBlock Text="🎤" Margin="0,0,2,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="Gray"/>
+                                            <Setter Property="Foreground" Value="#CCC"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding HasAudio}" Value="True">
-                                                    <Setter Property="Foreground" Value="LightGreen"/>
+                                                    <Setter Property="Foreground" Value="#28A745"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -143,27 +263,26 @@
                                 <TextBlock Text="🖥️" Margin="0,0,2,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="Gray"/>
+                                            <Setter Property="Foreground" Value="#CCC"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsScreenSharing}" Value="True">
-                                                    <Setter Property="Foreground" Value="LightGreen"/>
+                                                    <Setter Property="Foreground" Value="#28A745"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
-                                <TextBlock Text="{Binding UserName}" Margin="2,0,0,0" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding UserName}" Margin="2,0,0,0" FontWeight="SemiBold"/>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </GroupBox>
-
         </Grid>
 
-        <!-- COLONNA CENTRALE: Screen Share (Colonna 1) -->
+        <!-- COLONNA CENTRALE: Screen Share -->
         <GroupBox Header="Condivisione Schermo" Grid.Row="2" Grid.Column="1" Margin="5">
-            <Border BorderBrush="Gray" BorderThickness="1" Background="Black">
+            <Border BorderBrush="#DDD" BorderThickness="1" Background="#dfdfd2" CornerRadius="4">
                 <Grid>
                     <Image x:Name="screenShareImage" Stretch="Uniform" 
                            VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -171,47 +290,112 @@
                     <TextBlock x:Name="txtScreenSharePlaceholder" 
                                Text="Nessuna condivisione attiva" 
                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Foreground="White" FontSize="16"
+                               Foreground="#AAA" FontSize="16"
                                TextWrapping="Wrap" TextAlignment="Center"/>
                 </Grid>
             </Border>
         </GroupBox>
 
-        <!-- COLONNA DESTRA: Chat e Partecipanti (Colonna 2) -->
-        <GroupBox Header="Chat e Partecipanti" Grid.Row="2" Grid.Column="2" Margin="5">
+        <!-- COLONNA DESTRA: Chat -->
+        <GroupBox Header="Chat" Grid.Row="2" Grid.Column="2" Margin="5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <!-- Lista partecipanti -->
                     <RowDefinition Height="*"/>
-                    <!-- Chat messages -->
                     <RowDefinition Height="Auto"/>
-                    <!-- Input chat -->
                 </Grid.RowDefinitions>
+
+                <!-- Selettore destinatario -->
+                <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#DDD" BorderThickness="1" Margin="0,0,0,5" Padding="5" CornerRadius="4">
+                    <StackPanel>
+                        <TextBlock Text="Invia a:" FontSize="11" Foreground="#666" Margin="0,0,0,2"/>
+                        <ComboBox x:Name="cmbPrivateRecipient" 
+                                  Height="28"
+                                  Background="White"
+                                  Foreground="#333"
+                                  BorderBrush="#CCC"
+                                  BorderThickness="1"
+                                  Padding="3"
+                                  SelectionChanged="cmbPrivateRecipient_SelectionChanged">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Icon}" Margin="0,0,5,0"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
 
                 <!-- Chat messages -->
                 <ListBox x:Name="lstChat" Grid.Row="1" 
-                         Background="#2D2D30" 
-                         Foreground="White" 
-                         BorderThickness="0" 
-                         Margin="0,5,0,5">
+                         Background="White" 
+                         BorderThickness="1" 
+                         BorderBrush="#CCC"
+                         Margin="0,5,0,5"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="2">
-                                <TextBlock Text="{Binding Sender}" FontWeight="Bold" Foreground="LightBlue"/>
-                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="5,0,0,5"/>
-                                <TextBlock Text="{Binding Timestamp}" FontSize="10" Foreground="Gray" HorizontalAlignment="Right"/>
-                            </StackPanel>
+                            <Border CornerRadius="3" Padding="5" Margin="2">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#F5F5F5"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPrivate}" Value="True">
+                                                <Setter Property="Background" Value="#E6F2FF"/>
+                                                <Setter Property="BorderBrush" Value="#0066CC"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding DisplayText}" TextWrapping="Wrap">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#333333"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPrivate}" Value="True">
+                                                    <Setter Property="Foreground" Value="#0066CC"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-
+                
                 <!-- Input chat -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
-                    <TextBox x:Name="txtChatMessage" Width="180" Margin="0,0,5,0" Height="25"/>
-                    <Button x:Name="btnSendChat" Content="Invia" Width="60" Height="25"/>
-                </StackPanel>
+                <Grid Grid.Row="2" Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="txtChatMessage" 
+                             Grid.Column="0" 
+                             Height="30" 
+                             Margin="0,0,5,0"
+                             Background="White"
+                             Foreground="#333"
+                             BorderBrush="#CCC"
+                             KeyDown="txtChatMessage_KeyDown"/>
+                    <Button x:Name="btnSendChat" 
+                            Grid.Column="1" 
+                            Content="Invia" 
+                            Width="60" 
+                            Height="30"
+                            Background="#0078D4"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Click="btnSendChat_Click"/>
+                </Grid>
             </Grid>
         </GroupBox>
     </Grid>
 </Window>
+    
